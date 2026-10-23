@@ -1,0 +1,55 @@
+<head>
+    <!-- Head comment add by Standard.html -->
+    <meta name="referrer" content="no-referrer-when-downgrade">
+    
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/6.7.0/sweetalert2.css" rel="stylesheet">	
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/7.11.0/sweetalert2.all.min.js"></script>
+    <script type="text/javascript" src="https://track.my-dv.com/{{dvTrackingEndpoint}}?dom=dvtrk{{accountID}}&track=true&encodeCID={{encodeCID}}&marketMode=click&purl=##purl##&trackPURL=##purl##&trackProgramID={{publishProgramID}}" referrerpolicy="no-referrer-when-downgrade"></script>
+<style type="text/css">  
+	.linearTab{ display:table;width:100%}  /*#1942*/ 
+	.linearHeader{ display:table-row;}
+	.linearRow{ display: table-row-group;}
+	.linearCell{	display: table-cell; height: 2.5em; padding: .25em; text-align: center; vertical-align: middle;}
+	.swal2-container {
+		z-index: 2051 !important;
+	}
+	/*Fix sweet alert very small */
+	.swal2-popup {
+	   font-size: 1.55rem !important;
+	}
+	/* Set calendar display with swal*/ 
+	.swal2-container, .swal2-popup {
+	 	overflow: visible !important;
+	}
+</style>
+</head>
+<body>
+    <!-- body comment add by Standard.html -->
+    <script>
+        $('#rzForm option').each(function(){
+            var text=$(this).text()
+            if (text.length>56)
+                $(this).val(text).text(text.substr(0,55)+'…')
+        });
+
+        function validateEmail(email) {
+        var re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+        return re.test(email);
+        }
+        function validatePhone(phone) {
+            pnum = phone.replace(/\s+/g, "");
+            var re = /^((\+[1-9]{1,4}[ \-]*)|([0-9]?\([0-9]{2,3}\)[ \-]*)|(\([0-9]{2,3}\)[ \-]*)|([0-9]{2,4})[ \-]*)*?[0-9]{3,4}?[ \-]*[0-9]{3,4}?$/; 
+            return pnum.length > 9 && re.test(pnum);
+        }
+        function validateZip(zip) {
+            pnum = zip.replace(/\s+/g, "");
+            var re = /^(\d{5})?$/;
+            return re.test(pnum);
+        }
+        function validateZipUS(zip) {
+            pnum = zip.replace(/\s+/g, "");
+            var re= /(^\d{5}$)|(^\d{5}[-|—]\d{4}$)/;
+            return re.test(pnum);
+        }
+    </script>    
+</body>

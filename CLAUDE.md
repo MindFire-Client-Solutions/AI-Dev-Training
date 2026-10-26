@@ -130,7 +130,7 @@ if (!el) throw new Error('pageSubmitDate missing');
 el.value = submitTime;
 ```
 
-Silent failure is how we lost submit-time and lead-level data on existing pages.
+Silent failure is how we can lose submit-time and lead-level data on existing pages.
 
 ---
 

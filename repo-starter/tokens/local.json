@@ -1,0 +1,35 @@
+{
+  "_comment": "Local-only dummy values so the page renders for screenshots. Real substitution happens at publish. Nothing here is client data.",
+
+  "color_primary_hex": "#ff6633",
+  "color_primary_rgb": "255, 102, 51",
+  "color_secondary_hex": "#081e35",
+  "color_secondary_rgb": "8, 30, 53",
+  "color_page_bg": "#ffffff",
+
+  "company": "Example Co",
+  "company_name": "Example Co",
+  "company_address": "123 Main Street, Testville, CA 93930",
+  "firstname": "Test",
+  "lastname": "User",
+  "email": "test@example.com",
+
+  "purl": "",
+  "guest_purl": "gurlvisits",
+  "DVACCOUNTID": "00000",
+  "REMOTEACCESSID": "0000000000000000",
+  "accountID": "00000",
+  "publishProgramID": "0",
+  "encodeCID": "",
+  "dvTrackingEndpoint": "dvtrackingStage.js",
+
+  "favicon_url": "",
+  "img_bg_url": "",
+  "defButtonColor": "ff6633",
+
+  "ai_agent": "Test Agent",
+  "ai_connect": "auto",
+  "ai_mute_on_start": "unmute",
+  "ai_memory": "off",
+  "ai_auto_hangup": ""
+}

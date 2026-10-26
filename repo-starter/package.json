@@ -1,0 +1,17 @@
+{
+  "name": "mf-blueprint-templates",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MindFire Attract blueprint templates, with verification.",
+  "scripts": {
+    "assemble": "node scripts/assemble.mjs",
+    "check:forbidden": "node scripts/check-forbidden.mjs",
+    "baseline": "node scripts/assemble.mjs && playwright test --update-snapshots",
+    "verify": "npm run check:forbidden && npm run assemble && playwright test",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.47.0"
+  }
+}

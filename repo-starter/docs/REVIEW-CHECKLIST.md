@@ -12,22 +12,28 @@ Do not skip items because the change looks small.
 
 - [ ] **A spec exists** in `docs/` and is linked from the PR description.
 - [ ] **`npm run verify` passes**, and the run is attached or linked.
-- [ ] **The forbidden list is clean.** Run this from the repo root:
+      (Runs the source checks, assembles template + Standard.html, then the browser tests.)
+- [ ] **The forbidden list is clean.** From the repo root:
 
-```bash
+```
 npm run check:forbidden
 ```
 
-Which is this, and it must return nothing from `src/`:
+It must exit 0. It reads the rules from `scripts/check-forbidden.mjs`, which
+mirrors the "Never" list in `CLAUDE.md`, and runs the same on Windows and Mac.
 
-```bash
-grep -rniE "jquery|dvtracking|console\.log|!important|form-group|btn-block|input-group-addon" src/
-grep -rn "\$(" src/
-```
-
-> If something on the forbidden list is genuinely needed, that is a conversation
-> before the PR, not a note inside it. The answer may well be yes — but it
-> changes CLAUDE.md, and that is a decision, not an exception.
+> **About the baseline.** `.forbidden-baseline.json` records violations that
+> already existed when the gate was switched on, so the check fails only on
+> **new** ones. That is how we run a strict gate against legacy code without
+> stopping everything to fix it first.
+>
+> The baseline shrinks and never grows. When your change fixes baselined
+> violations, the check says so — run `npm run check:forbidden -- --update` and
+> commit the smaller file as part of your PR.
+>
+> **Adding to the baseline to make a check pass is not allowed.** If a rule is
+> genuinely wrong, that is a conversation before the PR and a change to
+> `CLAUDE.md` — a decision, not an exception.
 
 ---
 

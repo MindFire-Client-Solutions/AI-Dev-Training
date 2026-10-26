@@ -1,0 +1,23 @@
+{
+  "note": "Known violations, recorded so the gate can run on legacy code. This file should only ever shrink.",
+  "recorded": "2026-10-23",
+  "entries": [
+    "src/ATR21-Template-Bootstrap5.html::important::.defButtonStyle{border-color:#{{RAW defButtonColor}};background-color:#{{RAW defButtonColor}} !important}",
+    "src/ATR21-Template-Bootstrap5.html::important::background-color: var(--campaign-navbar-color) !important;",
+    "src/ATR21-Template-Bootstrap5.html::important::color: var(--campaign-navbar-text-color) !important;",
+    "src/ATR21-Template-Bootstrap5.html::jq-selector::$(document).ready(function() {",
+    "src/ATR21-Template-Bootstrap5.html::jquery::<script src=\"https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.4/jquery.js\"></script>",
+    "src/Standard.html::dvtracking::<script type=\"text/javascript\" src=\"https://track.my-dv.com/{{dvTrackingEndpoint}}?dom=dvtrk{{accountID}}&track=true&encodeCID={{encodeCID}}&marketMode=click&purl=##purl##&trackPURL=##purl##&trackProgramID={{publishProgramID}}\" referrerpolicy=\"no-referrer-when-downgrade\"></script>",
+    "src/Standard.html::important::font-size: 1.55rem !important;",
+    "src/Standard.html::important::overflow: visible !important;",
+    "src/Standard.html::important::z-index: 2051 !important;",
+    "src/Standard.html::jq-selector::$('#rzForm option').each(function(){",
+    "src/Standard.html::jq-selector::$(this).val(text).text(text.substr(0,55)+'…')",
+    "src/Standard.html::jq-selector::var text=$(this).text()",
+    "src/Standard.html::sweetalert::.swal2-container {",
+    "src/Standard.html::sweetalert::.swal2-container, .swal2-popup {",
+    "src/Standard.html::sweetalert::.swal2-popup {",
+    "src/Standard.html::sweetalert::<link href=\"https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/6.7.0/sweetalert2.css\" rel=\"stylesheet\">",
+    "src/Standard.html::sweetalert::<script src=\"https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/7.11.0/sweetalert2.all.min.js\"></script>"
+  ]
+}

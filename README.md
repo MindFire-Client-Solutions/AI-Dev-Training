@@ -18,9 +18,30 @@ Session 1 — fix problems there, not during the session.
 ## Working on a change
 
 1. Write a spec in `docs/`, from `docs/SPEC-TEMPLATE.md`. No code first.
-2. Make the change with the agent, in the editor, against this repo.
-3. `npm run verify`
-4. Open a PR. `docs/REVIEW-CHECKLIST.md` is the gate.
+2. Capture the baseline if there isn't one: `npm run baseline`, and commit it.
+   Without a before state, verification has nothing to compare against.
+3. Make the change with the agent, in the editor, against this repo.
+4. `npm run verify`
+5. Read the whole diff.
+6. Open a PR. `docs/REVIEW-CHECKLIST.md` is the gate.
+
+### Handing a spec to the agent
+
+`CLAUDE.md` is read automatically every time. **A spec is not** — you have to
+point the agent at it. Start `claude` in the repo folder and give it this:
+
+```
+Read docs/001-remove-jquery-and-sweetalert2.md.
+Implement only what is in the Scope section.
+Do not change anything listed under "Out of scope".
+Stop and ask if something is unclear rather than guessing.
+```
+
+Name the file, bind it to Scope, and give it permission not to guess. The
+out-of-scope list exists because the agent will otherwise notice other problems
+and fix those too — which is how a small change becomes an unreviewable one.
+
+Use the same shape every time, so everyone's work is comparable.
 
 ## Commands
 

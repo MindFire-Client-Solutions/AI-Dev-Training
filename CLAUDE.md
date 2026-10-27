@@ -32,6 +32,62 @@ are not being carried forward. Forms here are written as HTML.
 4. **A person reviews every change.** See `docs/REVIEW-CHECKLIST.md`. The agent
    does the work; it does not approve the work.
 
+### Working from a spec
+
+When a task names a spec in `docs/`, read it first, and then:
+
+- **Scope is binding.** Implement what the Scope section lists. Nothing else.
+- **Out of scope means do not touch.** Those exclusions are deliberate and
+  usually have a reason recorded elsewhere. Finding a genuine problem in an
+  out-of-scope file is useful — say so, do not fix it.
+- **Do not improve things you pass on the way.** Reformatting, renaming,
+  tidying or restructuring anything the spec did not ask for is a failed task,
+  even when the result is better code.
+- **Stop and ask rather than guess.** If the spec is unclear, incomplete, or
+  contradicts what you find in the code, say so before writing anything. A
+  question costs minutes; a wrong assumption built on for an hour does not.
+- **Fill in section 11** of the spec when you finish: what went well, what went
+  wrong, what the spec was missing.
+
+---
+
+## Language
+
+Work in whichever language you think best in. The agent understands Thai.
+
+**Thai is fine for:**
+
+- Prompts to the agent. Describe what you want in the language you think in —
+  precision matters more than English.
+- Discussion, notes, and the first draft of a specification.
+
+**Ask the agent to reply in Thai** whenever that helps. Add this to your prompt:
+
+```
+ตอบเป็นภาษาไทย
+```
+
+It will explain its plan and its changes in Thai, and still write English code.
+
+**English, because other people read it:**
+
+- Code, file names, class names, commit messages, pull request titles
+- Commands — those are syntax, not language
+- The final version of every specification in `docs/`
+
+Specifications are reviewed by people outside the team, so there must be an
+English version. **Write it in Thai first, then have the agent translate it:**
+
+```
+นี่คือ spec ที่ผมเขียน กรุณาแปลเป็นภาษาอังกฤษ
+โดยคงโครงสร้างและหัวข้อเดิมไว้ทั้งหมด
+```
+
+Keep both files. The English one is the one that gets reviewed.
+
+Mixing Thai and English technical terms is normal — write however reads
+naturally. The goal is precision, not translation.
+
 ---
 
 ## Stack

@@ -8,3 +8,4 @@ column order, and add your row at the bottom.
 | Name | Role | Location |
 |---|---|---|
 | Kushal Dutta | Product delivery | US |
+| Jiew | Software Engineer | TH |

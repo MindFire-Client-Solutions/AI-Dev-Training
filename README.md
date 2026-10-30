@@ -18,8 +18,10 @@ Session 1 — fix problems there, not during the session.
 ## Working on a change
 
 1. Write a spec in `docs/`, from `docs/SPEC-TEMPLATE.md`. No code first.
-2. Capture the baseline if there isn't one: `npm run baseline`, and commit it.
+2. Capture the baseline **before you change anything**: `npm run baseline`.
    Without a before state, verification has nothing to compare against.
+   Baselines are not committed -- they are yours, recorded on your machine, and
+   `verify` fails if they are missing rather than inventing them.
 3. Make the change with the agent, in the editor, against this repo.
 4. `npm run verify`
 5. Read the whole diff.

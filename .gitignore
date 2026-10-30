@@ -2,3 +2,8 @@ node_modules/
 dist/
 test-results/
 playwright-report/
+
+# Screenshot baselines are per-machine for now: each person records their own
+# before-state and compares against it. See README.
+tests/baseline/
+tests/*-snapshots/

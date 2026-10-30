@@ -22,7 +22,6 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link rel="icon" href="##favicon_url##" type="image/x-icon" />
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.4/jquery.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
     <title>##company_name##</title>
     <style>
@@ -237,7 +236,7 @@
 	<script src="https://mf-cdn.web.app/pixel-v030.js"></script>
 	<script src="https://mfdavinci.s3.us-west-1.amazonaws.com/MFIProSvcs/prod/lead2.js"></script> 
 	<script>    		   		
-		$(document).ready(function() {
+		document.addEventListener('DOMContentLoaded', function () {
 
 			let inpurl = "##purl##"; 
 			let page = window.location.pathname.split("/").pop().toLowerCase();

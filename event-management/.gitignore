@@ -1,0 +1,52 @@
+# ---------------------------------------------------------------------------
+# Client data — never commit. Contact lists and generated event batches both
+# contain PURLs and contact IDs tied to real campaigns.
+# ---------------------------------------------------------------------------
+input/*
+!input/.gitkeep
+
+output/*
+!output/.gitkeep
+
+# The real export contains client contact data (names, emails, PURLs).
+# Never commit it.
+reference/*.csv
+
+# ---------------------------------------------------------------------------
+# Secrets
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+
+# ---------------------------------------------------------------------------
+# Claude Code
+# ---------------------------------------------------------------------------
+.claude/settings.local.json
+CLAUDE.local.md
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# ---------------------------------------------------------------------------
+# OS / editor
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp

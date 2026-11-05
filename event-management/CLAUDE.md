@@ -8,28 +8,38 @@ without waiting on live campaign traffic.
 
 Reads `input/contacts.csv` and `input/agentConversationEvents_nnnnn.csv` where nnnnn is the account number.
 During every run, the system will produces event rows for those contacts, matching the schema of the real event export exactly. 
-Output goes to `output/` and nowhere else.
+Where the output goes depends on how the UI is run:
 
-**Output target:** CSV in the same format as `reference/Sample_Conversation_Export.csv`
+- **Local** (`npm start`): the CSV is saved to `output/` and offered for download.
+- **Hosted** (Cloudflare Pages): the CSV is a browser download only. There is no
+  `output/` folder on the hosted site.
+
+In both cases the generator runs **in the browser**. The input files are chosen in the
+page, processed there, and never uploaded anywhere. The run summary is shown on
+screen (and printed in the terminal when run locally). `input/` is where the files
+are kept locally.
+
+**Output target:** CSV in the same format as `input/agentConversationEvents_nnnnn.csv`
 
 ## Reference material (read these before writing any code)
 
 | File | What it is |
 |---|---|
-| `reference/Sample_Conversation_Export.csv` | **Real export** — AI conversations, acct 38525, Aug 2026. 59 rows, 5 contacts. The schema here is authoritative. |
+| `input/agentConversationEvents_nnnnn.csv` | **Real export** — AI conversations, where `nnnnn` is the account number (`acctID`). Example: acct 38525, Aug 2026, 59 rows, 5 contacts. The schema here is authoritative. |
 | `reference/event_codes.md` | Codes, journey model, field rules, JSON payload shapes — all derived from that export. |
-| `reference/Sample_Conversation_Export.html` | Design reference for any preview UI. |
+| `input/agentConversationEvents_nnnnn.csv` | Design reference for any preview UI. |
 
 If `reference/event_codes.md` disagrees with the export about field names, types, or formats, **the export is correct** 
 Tell me about the conflict rather than picking one silently.
 
 ## The schema in one paragraph
 
-The export is a **contact ⋈ event join**: 32 columns, where the contact block
+The export is a **contact ⋈ event join**, where the contact block
 (`PURL`, `_id`, `firstname`, `lastname`, `email`, address fields, `acctID`) 
 repeats identically on every one of that contact's event rows, and the event block
 (`app_code`, `event_code`, `event_date`, `event_path`, `event_element`, `app_code`)
-and other columns listed in the file `reference/Sample_Conversation_Export.csv`
+and other columns listed in the file `input/agentConversationEvents_nnnnn.csv`.
+The output header is that file's header exactly — same columns, same order.
 `purl` and `_id` uniquely identify a **contact** with its personalized URL and database objectId.
 
 ## Generation rules
@@ -46,15 +56,20 @@ event_date, event_path, event_element, app_code, Browser, Device, OS, Platform, 
 - Only the four codes in `reference/event_codes.md` §1: `30500`, `50531`, `50532`, `50533`. 
   Never emit any other codes — they belong to different campaign types and will pollute the dashboard.
 - `app_code` is always the first three digits of `event_code`.
-- During every run, use a randomly selected number of contacts which will have a distribution of event records associated with each of them, following the `Journey model` described below. To clarify, 70-80% of the contacts selected should have 30500 only. Of the rest, all will have 50531, and about 95% of more will have 50532 and 50533. Any contact that has a 50532, must have a cirresponding 50533.
+- During every run, use a randomly selected number of contacts, each with a sequence of
+  event records following the `Journey model` below. Funnel rates (configurable constants):
+  - 20–25% of contacts that have a `30500` also have a `50531`. The rest have `30500` only.
+  - At least 95% of `50531` rows have a matching `50532`. The rest are abandoned, which
+    leaves a valid orphan `50531`.
+  - Every `50532` has exactly one matching `50533`.
 - Please make sure to copy event records from matching contact _ids for the same contact in the output file.
 - The contact block in the output file may change from the `input/agentConversationEvents_nnnnn.csv` as long as it matches with a contact row in the file `input/contacts.csv`, the input file only has the contact block to identify which event rows go together with the same contact.
 
 ### Journey model — this is the core of the generator
 
 ```
-30500 (visit, repeatable, most contacts never go further)
-   └─> 50531 (requested)   ~20-25% abandon here, producing a valid orphan row
+30500 (visit, repeatable)   20–25% of visiting contacts go on to request
+   └─> 50531 (requested)    ≤5% abandon here, producing a valid orphan row
           └─> 50532 (completed)  ──> 50533 (evaluated, always paired)
 ```
 
@@ -68,6 +83,8 @@ Timing constraints that must hold:
 - `50532` → `50533` gap is sub-second: 0.18–0.67s observed
 - `30500` timestamps are second-precision ending `.000Z`; all `505xx` timestamps
   carry milliseconds. **Do not use one format for both.**
+- Every `event_date` falls between today minus 7 days and now. Source dates are
+  re-timed into that window; gaps inside a conversation are kept exactly.
 
 ### Fingerprint rules
 
@@ -87,19 +104,41 @@ Timing constraints that must hold:
 ## Hard rules
 
 - **Never write to a production endpoint, database, SFTP path, or S3 bucket.**
-  Output to `output/` only. If a task seems to require a live write, stop and ask.
+  Output goes to `output/` (local) or a browser download (hosted), nothing else.
+  If a task seems to require a live write, stop and ask.
+- **The hosted page must never send input or output data off the user's machine.**
+  No upload endpoint, no analytics, no third-party scripts. `_headers` sets
+  `connect-src 'none'`; keep it that way.
 - Never commit anything from `input/` or `output/`, and never commit
   `reference/event_table_sample.csv` — all contain real client contact data.
-- Generated emails, phones and names must be obviously synthetic. **Never reuse a
-  real value from the sample export** in generated output.
 - No credentials, account codes, or endpoint URLs in source. Read them from the
   environment and fail loudly if absent.
-- If generated output doesn't match the sample export's headers exactly — same
+- If generated output doesn't match the headers of `input/agentConversationEvents_nnnnn.csv` exactly — same
   columns, same order — fail the run. Don't coerce or silently drop columns.
 
 ## Stack and commands
 
-NodeJS for the backend logic, and VueJS/HTML, when creating UI.
+NodeJS for the backend logic, and VueJS/HTML, when creating UI. The current UI is
+plain HTML and vanilla JS, styled on `reference/Zoltar_AI_Dashboard_Intelligence_Demo.html`.
+No npm dependencies.
+
+```
+npm start       # UI on http://127.0.0.1:4310 (PORT to change); saves to output/
+npm test        # validator + generator tests (node:test, synthetic fixtures only)
+npm run build   # dist/ for Cloudflare Pages
+```
+
+Tunable ratios and ranges live in `src/lib/config.js`. Everything in `src/lib/` must
+stay browser-safe: no Node built-ins, because the same files are deployed as-is.
+
+## Deployment
+
+Cloudflare Pages, public link (anyone with the URL; `noindex` keeps it out of search).
+
+- Root directory `event-management`, build command `npm run build`, output `dist`.
+- `scripts/build.js` copies `src/ui/index.html` and `src/lib/*.js` and writes
+  `_headers` (CSP, noindex, no framing). No bundler, no dependencies.
+- `dist/` is a build artifact and is not committed.
 
 ## Run summary (print this every time)
 
@@ -108,7 +147,7 @@ funnel (requested / completed / evaluated, with the abandon count), `audio_time`
 min/median/max, date range produced, and the seed.
 
 Sanity check against the sample's own shape: visits should dominate, completed
-should trail requested by ~10%, and evaluated should equal completed exactly.
+should be ≥95% of requested, and evaluated should equal completed exactly.
 
 ## Working style for this repo
 

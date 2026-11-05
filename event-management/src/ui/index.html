@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Demo Event Generator</title>
+<meta name="description" content="Build a demo voice-AI conversation export from a contacts file and a real events file.">
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Tokens copied from reference/Zoltar_AI_Dashboard_Intelligence_Demo.html */
+:root{
+  color-scheme: light;
+  --plane:#f4f2ee; --surface:#ffffff; --surface-2:#faf8f4;
+  --ink:#1c1a16; --ink-2:#6a665e; --ink-3:#98938a;
+  --line:rgba(28,26,22,0.09); --line-2:rgba(28,26,22,0.16); --grid:#eae6de;
+  --accent:#e8632e; --accent-press:#cc5121; --accent-wash:#fcece3; --accent-ink:#a8410f;
+  --good:#0ca30c; --good-ink:#0a7d0a; --good-wash:#e6f4e6;
+  --warn:#e59500; --warn-ink:#9a6600; --warn-wash:#fbf0d8;
+  --bad:#d03b3b;  --bad-ink:#b02a2a;  --bad-wash:#fae3e3;
+  --neu:#8b8780;  --neu-wash:#efece6;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#8a5cd6;
+  --shadow:0 1px 2px rgba(28,26,22,.05), 0 4px 16px rgba(28,26,22,.04);
+  --radius:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --plane:#0e0e0d; --surface:#1a1a18; --surface-2:#222220;
+    --ink:#f4f2ec; --ink-2:#b7b3aa; --ink-3:#8b877f;
+    --line:rgba(255,255,255,0.10); --line-2:rgba(255,255,255,0.18); --grid:#2b2b28;
+    --accent:#f2764a; --accent-press:#e8632e; --accent-wash:#33231b; --accent-ink:#f7a17e;
+    --good:#20b520; --good-ink:#63d063; --good-wash:#16281a;
+    --warn:#f0a825; --warn-ink:#f2c264; --warn-wash:#2c2413;
+    --bad:#e05a5a;  --bad-ink:#ef8b8b;  --bad-wash:#2c1717;
+    --neu:#8b8780;  --neu-wash:#262622;
+    --s1:#3987e5; --s2:#e0682f; --s3:#22c78a; --s4:#9d74e3;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --plane:#0e0e0d; --surface:#1a1a18; --surface-2:#222220;
+  --ink:#f4f2ec; --ink-2:#b7b3aa; --ink-3:#8b877f;
+  --line:rgba(255,255,255,0.10); --line-2:rgba(255,255,255,0.18); --grid:#2b2b28;
+  --accent:#f2764a; --accent-press:#e8632e; --accent-wash:#33231b; --accent-ink:#f7a17e;
+  --good:#20b520; --good-ink:#63d063; --good-wash:#16281a;
+  --warn:#f0a825; --warn-ink:#f2c264; --warn-wash:#2c2413;
+  --bad:#e05a5a;  --bad-ink:#ef8b8b;  --bad-wash:#2c1717;
+  --neu:#8b8780;  --neu-wash:#262622;
+  --s1:#3987e5; --s2:#e0682f; --s3:#22c78a; --s4:#9d74e3;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.35);
+}
+
+*{box-sizing:border-box}
+[hidden]{display:none !important} /* !important: the hidden attribute must beat display rules on .grid/.card */
+body{
+  margin:0; background:var(--plane); color:var(--ink);
+  font-family:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:"IBM Plex Mono", ui-monospace, monospace; font-variant-numeric:tabular-nums}
+h1,h2,h3{margin:0; text-wrap:balance; font-weight:600; letter-spacing:-0.01em}
+
+/* shell */
+.main{min-width:0; padding:24px 32px 60px; max-width:1440px; margin:0 auto}
+.topbar{display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:20px; flex-wrap:wrap;
+  padding-bottom:18px; border-bottom:1px solid var(--line)}
+.topbar .h{display:flex; align-items:center; gap:13px}
+.topbar .htext{display:flex; flex-direction:column; gap:2px}
+.topbar .kicker{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:.11em; text-transform:uppercase; color:var(--ink-3)}
+.topbar h1{font-size:22px}
+.topbar .sub{color:var(--ink-2); font-size:13px}
+.topbar .tools{display:flex; align-items:center; gap:8px}
+.blogo{width:42px; height:42px; border-radius:11px; flex:none;
+  background:radial-gradient(120% 120% at 30% 20%, var(--accent) 0%, var(--accent-press) 100%);
+  display:grid; place-items:center; color:#fff; box-shadow:0 3px 10px rgba(232,99,46,.35)}
+.blogo svg{width:23px; height:23px}
+
+.btn{display:inline-flex; align-items:center; gap:7px; height:36px; padding:0 13px; border-radius:9px;
+  border:1px solid var(--line-2); background:var(--surface); color:var(--ink-2); font:inherit; font-size:13px; font-weight:500; cursor:pointer; text-decoration:none}
+.btn svg{width:15px; height:15px}
+.btn:hover{background:var(--surface-2); color:var(--ink)}
+.btn.icon{width:36px; padding:0; justify-content:center}
+.btn.pri{background:var(--accent); border-color:var(--accent); color:#fff}
+.btn.pri:hover{background:var(--accent-press)}
+.btn:disabled{opacity:.45; cursor:default}
+.btn.pri:disabled:hover{background:var(--accent)}
+
+/* inputs card */
+.ai-card{background:linear-gradient(135deg, var(--accent-wash) 0%, var(--surface) 62%);
+  border:1px solid var(--line-2); border-radius:var(--radius); box-shadow:var(--shadow);
+  padding:18px 20px; margin-bottom:16px; position:relative; overflow:hidden}
+.ai-card::before{content:""; position:absolute; inset:0 0 auto 0; height:3px;
+  background:linear-gradient(90deg, var(--accent), #d84f7a, var(--s1)); opacity:.9}
+.ai-head{display:flex; align-items:center; gap:11px; margin-bottom:14px; flex-wrap:wrap}
+.ai-badge{width:32px; height:32px; border-radius:9px; flex:none; color:#fff; display:grid; place-items:center;
+  background:radial-gradient(120% 120% at 30% 20%, var(--accent) 0%, #b83f78 100%)}
+.ai-badge svg{width:18px; height:18px}
+.ai-head .t{display:flex; flex-direction:column; gap:1px}
+.ai-head .t b{font-size:14.5px}
+.ai-head .t span{font-size:11.5px; color:var(--ink-2)}
+
+.uploads{display:grid; grid-template-columns:1fr 1fr 200px auto; gap:12px; align-items:stretch}
+.drop{position:relative; display:flex; align-items:center; gap:12px; padding:12px 14px; min-height:64px;
+  background:var(--surface); border:1.5px dashed var(--line-2); border-radius:11px; cursor:pointer}
+.drop:hover, .drop.over{border-color:var(--accent); background:var(--surface-2)}
+.drop:focus-within{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-wash)}
+.drop.has{border-style:solid; border-color:var(--good)}
+.drop input{position:absolute; inset:0; opacity:0; cursor:pointer; width:100%}
+.drop .ic{width:34px; height:34px; border-radius:9px; background:var(--accent-wash); color:var(--accent-ink); display:grid; place-items:center; flex:none}
+.drop.has .ic{background:var(--good-wash); color:var(--good-ink)}
+.drop .ic svg{width:18px; height:18px}
+.drop .txt{display:flex; flex-direction:column; min-width:0}
+.drop .txt b{font-size:13px}
+.drop .txt span{font-size:11.5px; color:var(--ink-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.lbl{font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3); font-family:"IBM Plex Mono",monospace}
+.field{position:relative; background:var(--surface); border:1px solid var(--line-2); border-radius:11px; padding:8px 12px; display:flex; flex-direction:column; justify-content:center; gap:2px}
+.field:focus-within{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-wash)}
+.field input{border:0; background:transparent; color:var(--ink); font:inherit; font-size:13.5px; width:100%; outline:none}
+.gen{height:auto; min-height:64px; padding:0 22px; font-size:14px}
+.hint{margin-top:10px; font-size:11.5px; color:var(--ink-3)}
+
+.banner{display:flex; gap:10px; align-items:flex-start; padding:12px 14px; border-radius:11px; margin-bottom:16px; font-size:13px}
+.banner.bad{background:var(--bad-wash); color:var(--bad-ink); border:1px solid var(--bad)}
+.banner.good{background:var(--good-wash); color:var(--good-ink); border:1px solid var(--good)}
+.banner b{font-weight:600; flex:none}
+.banner span{min-width:0; overflow-wrap:anywhere}
+
+/* results */
+.grid{display:grid; gap:16px}
+.kpis{grid-template-columns:repeat(6,1fr); margin-bottom:16px}
+.row2{grid-template-columns:1fr 1.2fr 1fr; margin-bottom:16px}
+.row3{grid-template-columns:1.4fr 1fr; margin-bottom:16px}
+.card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px; min-width:0}
+.card.pad0{padding:0}
+.card-h{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px}
+.card.pad0 .card-h{padding:16px 18px 0}
+.card-h h3{font-size:14.5px}
+.card-h .cap{font-size:11.5px; color:var(--ink-3)}
+.eyebrow{font-size:9.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3); font-family:"IBM Plex Mono",monospace}
+.kpi{padding:15px 16px}
+.kpi .val{font-family:"IBM Plex Mono",monospace; font-size:27px; font-weight:600; letter-spacing:-.02em; line-height:1; margin-top:9px}
+.kpi .meta{margin-top:7px; font-size:11.5px; color:var(--ink-2)}
+
+.bars{display:flex; flex-direction:column; gap:10px}
+.brow{display:grid; grid-template-columns:120px 1fr 44px; align-items:center; gap:10px}
+.brow .bn{font-size:12.5px; color:var(--ink-2)}
+.brow .bn b{font-family:"IBM Plex Mono",monospace; color:var(--ink); font-weight:600; margin-right:6px}
+.btrack{height:22px; border-radius:6px; background:var(--surface-2); overflow:hidden}
+.bfill{height:100%; border-radius:6px; min-width:2px}
+.brow .bv{font-family:"IBM Plex Mono",monospace; font-size:13px; font-weight:600; text-align:right}
+
+.funnel{display:flex; flex-direction:column; gap:9px}
+.fstage{display:grid; grid-template-columns:110px 1fr 64px; align-items:center; gap:12px}
+.fstage .fn{font-size:12.5px; color:var(--ink-2); font-weight:500}
+.ftrack{height:30px; border-radius:7px; background:var(--surface-2); overflow:hidden}
+.fbar{height:100%; border-radius:7px; display:flex; align-items:center; padding-left:11px; color:#fff; font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:13px; min-width:34px}
+.fstage .rate{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-3); text-align:right}
+.note{margin-top:10px; font-size:11px; color:var(--ink-3)}
+
+.dl{display:grid; grid-template-columns:auto 1fr; gap:9px 14px; margin:0; font-size:13px}
+.dl dt{color:var(--ink-3); font-size:11.5px; font-family:"IBM Plex Mono",monospace; text-transform:uppercase; letter-spacing:.06em; padding-top:1px}
+.dl dd{margin:0; font-family:"IBM Plex Mono",monospace; overflow-wrap:anywhere}
+
+.checks{list-style:none; margin:0; padding:0; display:flex; flex-direction:column}
+.checks li{display:grid; grid-template-columns:22px 1fr auto; gap:10px; align-items:start; padding:9px 0; border-bottom:1px solid var(--line); font-size:13px}
+.checks li:last-child{border-bottom:0}
+.mark{width:20px; height:20px; border-radius:6px; display:grid; place-items:center; font-size:12px; font-weight:700}
+.mark.ok{background:var(--good-wash); color:var(--good-ink)}
+.mark.bad{background:var(--bad-wash); color:var(--bad-ink)}
+.mark.warn{background:var(--warn-wash); color:var(--warn-ink)}
+.checks .detail{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--ink-3); white-space:nowrap}
+.checks ul{margin:6px 0 0; padding-left:16px; font-size:12px; color:var(--bad-ink); font-family:"IBM Plex Mono",monospace}
+.subhead{margin:16px 0 4px}
+.notes{margin:8px 0 0; padding-left:18px; font-size:12.5px; color:var(--ink-2)}
+
+.tbl-wrap{overflow:auto; max-height:520px}
+table{width:100%; border-collapse:collapse; font-size:12px}
+thead th{position:sticky; top:0; background:var(--surface); text-align:left; padding:10px 12px; font-size:10px; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--ink-3); font-family:"IBM Plex Mono",monospace; font-weight:500; border-bottom:1px solid var(--line-2); white-space:nowrap}
+tbody td{padding:8px 12px; border-bottom:1px solid var(--line); white-space:nowrap; max-width:240px; overflow:hidden; text-overflow:ellipsis; font-family:"IBM Plex Mono",monospace}
+tbody tr:hover td{background:var(--surface-2)}
+.code{display:inline-block; padding:1px 7px; border-radius:6px; font-weight:600; color:#fff}
+.tfoot{padding:12px 18px; font-size:12px; color:var(--ink-2)}
+.c30500{background:var(--s1)} .c50531{background:var(--s2)} .c50532{background:var(--s3)} .c50533{background:var(--s4)}
+
+@media (max-width:1100px){
+  .kpis{grid-template-columns:repeat(3,1fr)}
+  .row2, .row3{grid-template-columns:1fr}
+  .uploads{grid-template-columns:1fr 1fr}
+}
+@media (max-width:640px){
+  .main{padding:16px 16px 40px}
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .uploads{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<main class="main">
+  <div class="topbar">
+    <div class="h">
+      <span class="blogo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a4 4 0 0 0-4 4v3a4 4 0 0 0 8 0V7a4 4 0 0 0-4-4Z"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></span>
+      <div class="htext">
+        <span class="kicker">Zoltar AI · Demo data</span>
+        <h1>Event Generator</h1>
+        <div class="sub">Build a demo conversation export from your contacts and a real events file</div>
+      </div>
+    </div>
+    <div class="tools">
+      <button class="btn icon" id="themeBtn" type="button" title="Toggle theme" aria-label="Toggle theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v2M12 19v2M5 5l1.5 1.5M17.5 17.5 19 19M3 12h2M19 12h2M5 19l1.5-1.5M17.5 6.5 19 5"/><circle cx="12" cy="12" r="4"/></svg></button>
+      <a class="btn pri" id="downloadBtn" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12"/><path d="m8 11 4 4 4-4"/><path d="M4 19h16"/></svg>Download CSV</a>
+    </div>
+  </div>
+
+  <form class="ai-card" id="runForm">
+    <div class="ai-head">
+      <span class="ai-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12"/><path d="m8 7 4-4 4 4"/><path d="M4 21h16"/></svg></span>
+      <div class="t"><b>Choose input files</b><span>Files are processed in this browser and never uploaded. The generated CSV downloads directly<span id="localNote" hidden>, and the local server also saves a copy to <span class="mono">output/</span></span>.</span></div>
+    </div>
+    <div class="uploads">
+      <label class="drop" id="contactsDrop">
+        <input type="file" id="contactsFile" accept=".csv,text/csv" aria-label="Contacts file">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"/></svg></span>
+        <span class="txt"><b>Contacts</b><span data-role="status">contacts.csv: click or drop</span></span>
+      </label>
+      <label class="drop" id="eventsDrop">
+        <input type="file" id="eventsFile" accept=".csv,text/csv" aria-label="Events file">
+        <span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg></span>
+        <span class="txt"><b>Events</b><span data-role="status">agentConversationEvents_nnnnn.csv</span></span>
+      </label>
+      <div class="field">
+        <span class="lbl">Seed (optional)</span>
+        <input id="seed" inputmode="numeric" placeholder="random (0–4294967295)" autocomplete="off" aria-label="Seed, optional, whole number from 0 to 4294967295">
+      </div>
+      <button class="btn pri gen" id="genBtn" type="submit" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 14 0M13 6l6 6-6 6"/></svg>Generate
+      </button>
+    </div>
+    <div class="hint">Every event date is placed within the last 7 days, up to now. Seed is optional: leave it blank for a random run, or enter a whole number from 0 to 4,294,967,295. The same seed repeats which contacts, conversations and source rows are used, but dates move with the time of the run.</div>
+  </form>
+
+  <div id="banner" hidden></div>
+
+  <section id="results" hidden>
+    <div class="grid kpis" id="kpis"></div>
+
+    <div class="grid row2">
+      <div class="card">
+        <div class="card-h"><h3>Events by code</h3><span class="cap" id="rowsCap"></span></div>
+        <div class="bars" id="codeBars"></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h3>Conversation funnel</h3><span class="cap">Visit → evaluated</span></div>
+        <div class="funnel" id="funnel"></div>
+        <div class="note">Rate is the share of the step above. Targets: 20–25% of visiting contacts request; at least 95% of requests complete; every completion is evaluated.</div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h3>Run details</h3></div>
+        <dl class="dl" id="details"></dl>
+      </div>
+    </div>
+
+    <div class="grid row3">
+      <div class="card">
+        <div class="card-h"><h3>Validation</h3><span class="cap" id="validCap"></span></div>
+        <ul class="checks" id="checks"></ul>
+      </div>
+      <div class="card">
+        <div class="card-h"><h3>Funnel targets</h3><span class="cap">Warnings only</span></div>
+        <ul class="checks" id="warnings"></ul>
+        <div id="notesWrap" hidden>
+          <div class="eyebrow subhead">Notes</div>
+          <ul class="notes" id="notes"></ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="card pad0">
+      <div class="card-h"><h3>Preview</h3><span class="cap" id="previewCap"></span></div>
+      <div class="tbl-wrap"><table><thead id="thead"></thead><tbody id="tbody"></tbody></table></div>
+      <div class="tfoot" id="tfoot"></div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+// The generator runs entirely in this browser. Input files are never uploaded.
+// When served by the local server (npm start), a copy is also saved to output/.
+import { generate, parseSeed, outputFileName } from './lib/generator.js';
+import { formatSummary } from './lib/summary.js';
+
+(function () {
+  'use strict';
+
+  const LOCAL = ['127.0.0.1', 'localhost'].includes(location.hostname);
+  let downloadUrl = null;
+
+  const files = { contacts: null, events: null };
+  const byId = (id) => {
+    const el = document.getElementById(id);
+    if (!el) throw new Error(`#${id} missing`);
+    return el;
+  };
+
+  // Build DOM with textContent only: uploaded values are client data, never HTML.
+  function h(tag, attrs, ...children) {
+    const el = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (k === 'class') el.className = v;
+      else if (k === 'style') Object.assign(el.style, v);
+      else el.setAttribute(k, v);
+    }
+    for (const c of children.flat()) {
+      if (c == null || c === false) continue;
+      el.append(c instanceof Node ? c : document.createTextNode(String(c)));
+    }
+    return el;
+  }
+  const fill = (el, ...kids) => { el.replaceChildren(...kids.flat()); return el; };
+  const fmt = (n) => (n == null ? '—' : Number(n).toLocaleString());
+  const pct = (v) => (v == null ? '—' : `${(v * 100).toFixed(1)}%`);
+  const sec = (v) => (v == null ? '—' : `${v.toFixed(1)}s`);
+  const when = (iso) => (iso ? iso.replace('T', ' ').replace(/\.\d{3}Z$/, ' UTC') : '—');
+
+  // ---- theme ---------------------------------------------------------------
+  try { const t = localStorage.getItem('egTheme'); if (t) document.documentElement.dataset.theme = t; } catch (e) { /* storage blocked */ }
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('#themeBtn')) return;
+    const root = document.documentElement;
+    const dark = root.dataset.theme ? root.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+    root.dataset.theme = dark ? 'light' : 'dark';
+    try { localStorage.setItem('egTheme', root.dataset.theme); } catch (err) { /* storage blocked */ }
+  });
+
+  // ---- file inputs -----------------------------------------------------------
+  function readFile(kind, file) {
+    const drop = byId(`${kind}Drop`);
+    const status = drop.querySelector('[data-role="status"]');
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function () {
+      const text = String(reader.result);
+      const lines = text.split(/\r?\n/).filter((l) => l.trim() !== '').length;
+      files[kind] = { name: file.name, text };
+      status.textContent = `${file.name} · ${Math.max(0, lines - 1).toLocaleString()} rows`;
+      drop.classList.add('has');
+      byId('genBtn').disabled = !(files.contacts && files.events);
+    };
+    reader.onerror = function () { status.textContent = `Could not read ${file.name}`; };
+    reader.readAsText(file);
+  }
+
+  document.addEventListener('change', function (e) {
+    const input = e.target.closest('#contactsFile, #eventsFile');
+    if (!input) return;
+    readFile(input.id === 'contactsFile' ? 'contacts' : 'events', input.files[0]);
+  });
+  for (const type of ['dragover', 'dragleave', 'drop']) {
+    document.addEventListener(type, function (e) {
+      const drop = e.target.closest && e.target.closest('.drop');
+      if (!drop) return;
+      e.preventDefault();
+      drop.classList.toggle('over', type === 'dragover');
+      if (type === 'drop' && e.dataTransfer.files[0]) {
+        readFile(drop.id === 'contactsDrop' ? 'contacts' : 'events', e.dataTransfer.files[0]);
+      }
+    });
+  }
+
+  byId('localNote').hidden = !LOCAL;
+
+  // ---- run -------------------------------------------------------------------
+  // Local server only: save a copy to output/. Returns the saved path or null.
+  async function saveLocalCopy(fileName, csv, summaryText) {
+    try {
+      const res = await fetch('/api/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName, csv, summaryText }),
+      });
+      const data = await res.json();
+      return res.ok ? data.path : null;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  document.addEventListener('submit', async function (e) {
+    if (e.target.id !== 'runForm') return;
+    e.preventDefault();
+    const btn = byId('genBtn');
+    btn.disabled = true;
+    btn.lastChild.textContent = 'Generating…';
+    await new Promise((r) => setTimeout(r, 0)); // let the button repaint first
+    try {
+      const seed = parseSeed(byId('seed').value);
+      const result = generate({
+        contactsCsv: files.contacts.text, eventsCsv: files.events.text,
+        eventsFileName: files.events.name, ...(seed === undefined ? {} : { seed }),
+      });
+      const ok = result.validation.ok;
+      const fileName = ok ? outputFileName(result.acctID, result.seed) : null;
+      const savedTo = ok && LOCAL ? await saveLocalCopy(fileName, result.csv, formatSummary(result.summary)) : null;
+      if (downloadUrl) URL.revokeObjectURL(downloadUrl);
+      downloadUrl = ok ? URL.createObjectURL(new Blob([result.csv], { type: 'text/csv;charset=utf-8' })) : null;
+      render({
+        ok, fileName, savedTo, acctID: result.acctID, summary: result.summary,
+        validation: result.validation, notes: result.notes, window: result.window,
+        header: result.header, preview: result.rows.slice(0, 50),
+      });
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      btn.disabled = false;
+      btn.lastChild.textContent = 'Generate';
+    }
+  });
+
+  function showError(msg) {
+    byId('results').hidden = true;
+    byId('downloadBtn').hidden = true;
+    const b = fill(byId('banner'), h('b', null, 'Run failed.'), h('span', null, msg));
+    b.className = 'banner bad';
+    b.hidden = false;
+  }
+
+  function render(d) {
+    const s = d.summary;
+    const banner = byId('banner');
+    if (d.ok) {
+      fill(banner, h('b', null, d.savedTo ? 'Saved' : 'Ready'),
+        h('span', { class: 'mono' }, d.savedTo || d.fileName),
+        h('span', null, d.savedTo ? '· also available from Download CSV' : '· use Download CSV to save it'));
+      banner.className = 'banner good';
+    } else {
+      fill(banner, h('b', null, 'Validation failed.'), h('span', null, 'No file was produced. See the failed checks below.'));
+      banner.className = 'banner bad';
+    }
+    banner.hidden = false;
+
+    const dl = byId('downloadBtn');
+    dl.hidden = !d.ok;
+    if (d.ok) { dl.href = downloadUrl; dl.download = d.fileName; }
+
+    // KPIs
+    const kpi = (label, val, meta) => h('div', { class: 'card kpi' }, h('div', { class: 'eyebrow' }, label), h('div', { class: 'val' }, val), h('div', { class: 'meta' }, meta));
+    fill(byId('kpis'),
+      kpi('Rows', fmt(s.rowCount), `account ${d.acctID}`),
+      kpi('Contacts touched', fmt(s.contactsTouched), `${fmt(s.contactsSkipped)} skipped of ${fmt(s.contactsTotal)}`),
+      kpi('Requested', fmt(s.funnel.requested), `${fmt(s.funnel.requesters)} contacts`),
+      kpi('Completed', fmt(s.funnel.completed), pct(s.rates.completionRate) + ' of requested'),
+      kpi('Evaluated', fmt(s.funnel.evaluated), s.funnel.evaluated === s.funnel.completed ? 'equals completed' : 'does NOT equal completed'),
+      kpi('Abandoned', fmt(s.funnel.abandoned), 'requested, not completed'));
+
+    // per-code bars
+    const names = { '30500': 'Visit', '50531': 'Requested', '50532': 'Completed', '50533': 'Evaluated' };
+    const max = Math.max(1, ...Object.values(s.byCode));
+    fill(byId('codeBars'), Object.entries(s.byCode).map(([code, n]) =>
+      h('div', { class: 'brow' },
+        h('span', { class: 'bn' }, h('b', null, code), names[code] || ''),
+        h('div', { class: 'btrack' }, h('div', { class: `bfill c${code}`, style: { width: `${(n / max) * 100}%` } })),
+        h('span', { class: 'bv' }, fmt(n)))));
+    byId('rowsCap').textContent = `${fmt(s.rowCount)} rows`;
+
+    // funnel
+    const f = s.funnel;
+    const stages = [
+      ['Visiting contacts', f.visitors, null, 'c30500'],
+      ['Requesting', f.requesters, f.visitors ? f.requesters / f.visitors : null, 'c50531'],
+      ['Requests', f.requested, null, 'c50531'],
+      ['Completed', f.completed, f.requested ? f.completed / f.requested : null, 'c50532'],
+      ['Evaluated', f.evaluated, f.completed ? f.evaluated / f.completed : null, 'c50533'],
+    ];
+    const fmax = Math.max(1, f.visitors, f.requested);
+    fill(byId('funnel'), stages.map(([label, n, rate, cls]) =>
+      h('div', { class: 'fstage' },
+        h('span', { class: 'fn' }, label),
+        h('div', { class: 'ftrack' }, h('div', { class: `fbar ${cls}`, style: { width: `${(n / fmax) * 100}%` } }, fmt(n))),
+        h('span', { class: 'rate' }, rate == null ? '' : pct(rate)))));
+
+    // details
+    const row = (k, v) => [h('dt', null, k), h('dd', null, v)];
+    fill(byId('details'),
+      row('Account', d.acctID),
+      row('Seed', String(s.seed)),
+      row('audio_time', `min ${sec(s.audioTime.min)} · median ${sec(s.audioTime.median)} · max ${sec(s.audioTime.max)}`),
+      row('First event', when(s.dateRange.first)),
+      row('Last event', when(s.dateRange.last)),
+      row('Window', `${when(d.window.start)} → ${when(d.window.end)}`),
+      row('Output', d.ok ? (d.savedTo || `${d.fileName} (download)`) : 'not produced'));
+
+    // validation
+    const failedCount = d.validation.checks.filter((c) => !c.ok).length;
+    byId('validCap').textContent = failedCount ? `${failedCount} rule(s) failed` : `all ${d.validation.checks.length} rules pass`;
+    fill(byId('checks'), d.validation.checks.map((c) =>
+      h('li', null,
+        h('span', { class: `mark ${c.ok ? 'ok' : 'bad'}` }, c.ok ? '✓' : '✕'),
+        h('div', null, c.label, c.ok ? null : h('ul', null, c.examples.map((x) => h('li', null, `${x.row ? `row ${x.row}: ` : ''}${x.message}`)))),
+        h('span', { class: 'detail' }, c.ok ? '' : `${fmt(c.count)}×`))));
+    fill(byId('warnings'), d.validation.warnings.map((w) =>
+      h('li', null,
+        h('span', { class: `mark ${w.ok ? 'ok' : 'warn'}` }, w.ok ? '✓' : '!'),
+        h('div', null, w.label),
+        h('span', { class: 'detail' }, w.detail))));
+    byId('notesWrap').hidden = !d.notes.length;
+    fill(byId('notes'), d.notes.map((n) => h('li', null, n)));
+
+    // preview
+    fill(byId('thead'), h('tr', null, d.header.map((c) => h('th', null, c))));
+    fill(byId('tbody'), d.preview.map((r) => h('tr', null, d.header.map((c) => {
+      const v = r[c] ?? '';
+      if (c === 'event_code') return h('td', null, h('span', { class: `code c${v}` }, v));
+      return h('td', { title: v }, v);
+    }))));
+    byId('previewCap').textContent = `${d.header.length} columns`;
+    byId('tfoot').textContent = `Showing ${fmt(d.preview.length)} of ${fmt(s.rowCount)} rows. Download the CSV for the full file.`;
+
+    byId('results').hidden = false;
+  }
+}());
+</script>
+</body>
+</html>

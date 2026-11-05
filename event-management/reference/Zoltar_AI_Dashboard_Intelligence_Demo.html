@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Zoltar Intelligence — AI agent search and Q&A demo">
+<style>html{color-scheme:light}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Zoltar Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* ===================== TOKENS ===================== */
+:root{
+  color-scheme: light;
+  --plane:#f4f2ee;          /* warm page ground, biased toward accent */
+  --surface:#ffffff;        /* card */
+  --surface-2:#faf8f4;      /* inset / hover */
+  --ink:#1c1a16;            /* warm near-black */
+  --ink-2:#6a665e;          /* secondary */
+  --ink-3:#98938a;          /* muted labels */
+  --line:rgba(28,26,22,0.09);
+  --line-2:rgba(28,26,22,0.16);
+  --grid:#eae6de;
+  --accent:#e8632e;         /* Zoltar orange */
+  --accent-press:#cc5121;
+  --accent-wash:#fcece3;
+  --accent-ink:#a8410f;
+
+  /* semantic / sentiment */
+  --good:#0ca30c; --good-ink:#0a7d0a; --good-wash:#e6f4e6;
+  --warn:#e59500; --warn-ink:#9a6600; --warn-wash:#fbf0d8;
+  --bad:#d03b3b;  --bad-ink:#b02a2a;  --bad-wash:#fae3e3;
+  --neu:#8b8780;  --neu-wash:#efece6;
+
+  /* categorical series (validated: blue / orange / aqua) */
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a;
+
+  --shadow:0 1px 2px rgba(28,26,22,.05), 0 4px 16px rgba(28,26,22,.04);
+  --radius:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --plane:#0e0e0d; --surface:#1a1a18; --surface-2:#222220;
+    --ink:#f4f2ec; --ink-2:#b7b3aa; --ink-3:#8b877f;
+    --line:rgba(255,255,255,0.10); --line-2:rgba(255,255,255,0.18);
+    --grid:#2b2b28;
+    --accent:#f2764a; --accent-press:#e8632e; --accent-wash:#33231b; --accent-ink:#f7a17e;
+    --good:#20b520; --good-ink:#63d063; --good-wash:#16281a;
+    --warn:#f0a825; --warn-ink:#f2c264; --warn-wash:#2c2413;
+    --bad:#e05a5a;  --bad-ink:#ef8b8b;  --bad-wash:#2c1717;
+    --neu:#8b8780;  --neu-wash:#262622;
+    --s1:#3987e5; --s2:#e0682f; --s3:#22c78a;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --plane:#0e0e0d; --surface:#1a1a18; --surface-2:#222220;
+  --ink:#f4f2ec; --ink-2:#b7b3aa; --ink-3:#8b877f;
+  --line:rgba(255,255,255,0.10); --line-2:rgba(255,255,255,0.18);
+  --grid:#2b2b28;
+  --accent:#f2764a; --accent-press:#e8632e; --accent-wash:#33231b; --accent-ink:#f7a17e;
+  --good:#20b520; --good-ink:#63d063; --good-wash:#16281a;
+  --warn:#f0a825; --warn-ink:#f2c264; --warn-wash:#2c2413;
+  --bad:#e05a5a;  --bad-ink:#ef8b8b;  --bad-wash:#2c1717;
+  --neu:#8b8780;  --neu-wash:#262622;
+  --s1:#3987e5; --s2:#e0682f; --s3:#22c78a;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 4px 16px rgba(0,0,0,.35);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--plane); color:var(--ink);
+  font-family:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:"IBM Plex Mono", ui-monospace, monospace; font-variant-numeric:tabular-nums;}
+h1,h2,h3{margin:0; text-wrap:balance; font-weight:600; letter-spacing:-0.01em;}
+
+/* ===================== SHELL ===================== */
+.app{min-height:100vh;}
+.blogo{
+  width:42px; height:42px; border-radius:11px; flex:none;
+  background:radial-gradient(120% 120% at 30% 20%, var(--accent) 0%, var(--accent-press) 100%);
+  display:grid; place-items:center; color:#fff; box-shadow:0 3px 10px rgba(232,99,46,.35);
+}
+.blogo svg{width:23px;height:23px}
+
+.main{min-width:0; padding:24px 32px 60px; max-width:1440px; margin:0 auto;}
+.topbar{display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:20px; flex-wrap:wrap;
+  padding-bottom:18px; border-bottom:1px solid var(--line)}
+.topbar .h{display:flex; flex-direction:row; align-items:center; gap:13px}
+.topbar .htext{display:flex; flex-direction:column; gap:2px}
+.topbar .kicker{font-family:"IBM Plex Mono",monospace; font-size:10px; letter-spacing:.11em; text-transform:uppercase; color:var(--ink-3)}
+.topbar h1{font-size:22px}
+.topbar .sub{color:var(--ink-2); font-size:13px}
+.topbar .tools{display:flex; align-items:center; gap:8px}
+
+.btn{
+  display:inline-flex; align-items:center; gap:7px; height:36px; padding:0 13px; border-radius:9px;
+  border:1px solid var(--line-2); background:var(--surface); color:var(--ink-2); font:inherit; font-size:13px; font-weight:500;
+  cursor:pointer;
+}
+.btn svg{width:15px;height:15px}
+.btn:hover{background:var(--surface-2); color:var(--ink)}
+.btn.icon{width:36px;padding:0;justify-content:center}
+.btn.pri{background:var(--accent); border-color:var(--accent); color:#fff}
+.btn.pri:hover{background:var(--accent-press)}
+
+/* ===================== CONTROL BAR ===================== */
+.controls{
+  display:grid; grid-template-columns: 220px 1fr 200px; gap:12px; margin-bottom:18px;
+}
+.field{position:relative; background:var(--surface); border:1px solid var(--line-2); border-radius:11px; padding:8px 12px; display:flex; align-items:center; gap:9px; box-shadow:var(--shadow)}
+.field:focus-within{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-wash)}
+.field svg{width:17px;height:17px;color:var(--ink-3);flex:none}
+.field .lbl{position:absolute; top:-8px; left:11px; background:var(--surface); padding:0 5px; font-size:10px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3); font-family:"IBM Plex Mono",monospace}
+.field input, .field select{border:0; background:transparent; color:var(--ink); font:inherit; font-size:13.5px; width:100%; outline:none}
+.field input::placeholder{color:var(--ink-3)}
+.field.search{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset, var(--shadow)}
+.field.trans-search{padding:7px 10px; border-radius:9px; box-shadow:none; min-width:340px; background:var(--surface-2)}
+.field.trans-search svg{color:var(--accent)}
+.field.trans-search:focus-within{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-wash)}
+.field.trans-search input{font-size:13px}
+.field button[id^="clear"]{cursor:pointer; color:var(--ink-3); font-size:16px; line-height:1; padding:2px; border-radius:5px; border:0; background:transparent; flex:none}
+.field button[id^="clear"]:hover{color:var(--ink); background:var(--surface)}
+@media (max-width:640px){.field.trans-search{min-width:0;width:100%}}
+
+/* ===================== GRID / CARDS ===================== */
+.grid{display:grid; gap:16px}
+.kpis{grid-template-columns:repeat(6,1fr); margin-bottom:16px}
+.row2{grid-template-columns: 1.15fr 1fr 1fr; margin-bottom:16px}
+.row3{grid-template-columns: 1.4fr 1fr; margin-bottom:16px}
+
+.card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:18px}
+.card.pad0{padding:0}
+.card-h{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px}
+.card-h h3{font-size:14.5px}
+.card-h .cap{font-size:11.5px; color:var(--ink-3)}
+.eyebrow{font-size:10px; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3); font-family:"IBM Plex Mono",monospace}
+
+/* KPI tile */
+.kpi{padding:15px 16px}
+.kpi .top{display:flex; align-items:center; justify-content:space-between; margin-bottom:9px}
+.kpi .top .eyebrow{font-size:9.5px}
+.kpi .ic{width:26px;height:26px;border-radius:8px;background:var(--accent-wash);color:var(--accent-ink);display:grid;place-items:center}
+.kpi .ic svg{width:15px;height:15px}
+.kpi .val{font-family:"IBM Plex Mono",monospace; font-size:27px; font-weight:600; letter-spacing:-.02em; line-height:1}
+.kpi .val small{font-size:15px; color:var(--ink-2); font-weight:500}
+.kpi .meta{margin-top:7px; font-size:11.5px; color:var(--ink-2); display:flex; align-items:center; gap:6px}
+.delta{font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600; padding:1px 6px; border-radius:20px; display:inline-flex; align-items:center; gap:3px}
+.delta.up{color:var(--good-ink); background:var(--good-wash)}
+.delta.dn{color:var(--bad-ink); background:var(--bad-wash)}
+.delta.flat{color:var(--ink-2); background:var(--neu-wash)}
+
+/* Funnel */
+.funnel{display:flex; flex-direction:column; gap:9px}
+.fstage{display:grid; grid-template-columns:118px 1fr auto; align-items:center; gap:12px}
+.fstage .fn{font-size:12.5px; color:var(--ink-2); font-weight:500}
+.ftrack{height:30px; border-radius:7px; background:var(--surface-2); overflow:hidden; position:relative}
+.fbar{height:100%; border-radius:7px; display:flex; align-items:center; padding-left:11px; color:#fff; font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:13px}
+.fstage .rate{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-3); min-width:42px; text-align:right}
+
+/* donut */
+.donut-wrap{display:flex; align-items:center; gap:18px}
+.donut{position:relative; width:132px; height:132px; flex:none}
+.donut .ctr{position:absolute; inset:0; display:grid; place-items:center; text-align:center}
+.donut .ctr b{font-family:"IBM Plex Mono",monospace; font-size:26px; font-weight:600; display:block; line-height:1}
+.donut .ctr span{font-size:10.5px; color:var(--ink-3); letter-spacing:.05em; text-transform:uppercase}
+.legend{display:flex; flex-direction:column; gap:9px; font-size:12.5px}
+.legend .li{display:flex; align-items:center; gap:9px}
+.legend .dot{width:10px;height:10px;border-radius:3px;flex:none}
+.legend .li b{margin-left:auto; font-family:"IBM Plex Mono",monospace; font-weight:600}
+.legend .li small{color:var(--ink-3); font-family:"IBM Plex Mono",monospace}
+
+/* topics */
+.topic{display:grid; grid-template-columns:1fr auto; gap:5px 12px; align-items:center; padding:9px 0; border-bottom:1px solid var(--line); cursor:pointer}
+.topic:last-child{border-bottom:0}
+.topic:hover .tname{color:var(--accent-ink)}
+.topic .tname{font-size:13px; font-weight:500; display:flex; align-items:center; gap:9px}
+.topic .rank{font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-3); width:16px}
+.topic .tcount{font-family:"IBM Plex Mono",monospace; font-size:12.5px; font-weight:600}
+.topic .tbar{grid-column:1 / -1; height:6px; border-radius:4px; background:var(--surface-2); overflow:hidden}
+.topic .tbar i{display:block; height:100%; border-radius:4px; background:var(--accent)}
+.topic.active .tbar i{background:var(--accent-press)}
+.topic .ttrend{font-family:"IBM Plex Mono",monospace; font-size:10.5px}
+.topic.filtered-on{background:var(--accent-wash); margin:0 -8px; padding:9px 8px; border-radius:8px}
+
+/* sentiment bar */
+.sentbar{height:34px; border-radius:8px; overflow:hidden; display:flex; margin-bottom:12px}
+.sentbar > div{display:flex; align-items:center; justify-content:center; color:#fff; font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:12px; min-width:0}
+.sentmeta{display:flex; gap:16px; font-size:12px; color:var(--ink-2); flex-wrap:wrap}
+.sentmeta .li{display:flex;align-items:center;gap:7px}
+.sentmeta .dot{width:9px;height:9px;border-radius:3px}
+
+/* svg charts */
+.chart{width:100%; height:auto; display:block; overflow:visible}
+.axis-lbl{fill:var(--ink-3); font-size:10px; font-family:"IBM Plex Mono",monospace}
+.gridline{stroke:var(--grid); stroke-width:1}
+.bar-legend{display:flex; gap:16px; justify-content:center; margin-bottom:6px; font-size:12px; flex-wrap:wrap}
+.bar-legend .li{display:flex;align-items:center;gap:7px;color:var(--ink-2)}
+.bar-legend .dot{width:10px;height:10px;border-radius:3px}
+
+/* ===================== TABLE ===================== */
+.tbl-wrap{overflow-x:auto}
+table{width:100%; border-collapse:collapse; font-size:13px}
+thead th{
+  text-align:left; padding:11px 16px; font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--ink-3); font-family:"IBM Plex Mono",monospace; font-weight:500; border-bottom:1px solid var(--line); white-space:nowrap;
+}
+tbody td{padding:12px 16px; border-bottom:1px solid var(--line); vertical-align:middle}
+tbody tr:hover{background:var(--surface-2)}
+.avatar{width:30px;height:30px;border-radius:50%; display:inline-grid; place-items:center; font-family:"IBM Plex Mono",monospace; font-weight:600; font-size:11px; color:#fff; flex:none}
+.caller{display:flex; align-items:center; gap:10px; font-weight:500}
+.cinfo{display:flex; flex-direction:column; line-height:1.25; min-width:0}
+.cname{font-weight:500}
+.cpurl{font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--ink-3); letter-spacing:.01em}
+.tm{font-family:"IBM Plex Mono",monospace; color:var(--ink-2); white-space:nowrap}
+.dur{font-family:"IBM Plex Mono",monospace}
+.pill{display:inline-flex; align-items:center; gap:5px; padding:3px 9px; border-radius:20px; font-size:11.5px; font-weight:500; white-space:nowrap}
+.pill .dot{width:7px;height:7px;border-radius:50%}
+.pill.pos{background:var(--good-wash); color:var(--good-ink)}
+.pill.neu{background:var(--neu-wash); color:var(--ink-2)}
+.pill.neg{background:var(--bad-wash); color:var(--bad-ink)}
+.chip{display:inline-block; padding:2px 8px; border-radius:6px; background:var(--surface-2); border:1px solid var(--line); font-size:11px; color:var(--ink-2); white-space:nowrap}
+.tbtn{width:30px;height:30px;border-radius:8px;border:1px solid var(--line-2); background:var(--surface); color:var(--ink-2); cursor:pointer; display:inline-grid; place-items:center}
+.tbtn:hover{background:var(--accent-wash); color:var(--accent-ink); border-color:var(--accent)}
+.tbtn svg{width:15px;height:15px}
+mark{background:var(--warn); color:#1c1a16; border-radius:3px; padding:0 2px; font-weight:600}
+.trow-detail td{background:var(--surface-2); padding:0}
+.trans{padding:14px 18px 16px 58px; font-size:12.5px; color:var(--ink-2); line-height:1.65; max-width:80ch}
+.trans .who{font-family:"IBM Plex Mono",monospace; font-weight:600; color:var(--ink); font-size:11px}
+.searchbanner{display:flex; align-items:center; gap:10px; padding:11px 16px; background:var(--accent-wash); border-bottom:1px solid var(--line); font-size:12.5px; color:var(--accent-ink)}
+.searchbanner b{font-family:"IBM Plex Mono",monospace}
+.tfoot{display:flex; align-items:center; justify-content:space-between; padding:12px 16px; font-size:12px; color:var(--ink-2); gap:14px; flex-wrap:wrap}
+.tfoot .pg{display:flex; align-items:center; gap:4px}
+.tfoot .pg button{width:30px;height:30px;border-radius:8px;border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);cursor:pointer}
+.tfoot .pg button:hover:not(:disabled){background:var(--surface-2)}
+.tfoot .pg button:disabled{opacity:.4;cursor:default}
+.empty{padding:40px; text-align:center; color:var(--ink-3)}
+.flag{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:6px;background:var(--warn-wash);color:var(--warn-ink)}
+.flag svg{width:13px;height:13px}
+
+.note{margin-top:2px;font-size:11px;color:var(--ink-3)}
+@media (max-width:1100px){
+  .kpis{grid-template-columns:repeat(3,1fr)}
+  .row2{grid-template-columns:1fr}
+  .row3{grid-template-columns:1fr}
+  .controls{grid-template-columns:1fr}
+}
+@media (max-width:640px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .main{padding:18px 16px 48px}
+}
+
+/* ===================== AI INTELLIGENCE PANEL ===================== */
+.ai-card{
+  background:linear-gradient(135deg, var(--accent-wash) 0%, var(--surface) 62%);
+  border:1px solid var(--line-2); border-radius:var(--radius); box-shadow:var(--shadow);
+  padding:18px 20px; margin-bottom:16px; position:relative; overflow:hidden;
+}
+.ai-card::before{content:""; position:absolute; inset:0 0 auto 0; height:3px;
+  background:linear-gradient(90deg, var(--accent), #d84f7a, var(--s1)); opacity:.9}
+.ai-head{display:flex; align-items:center; gap:11px; margin-bottom:13px; flex-wrap:wrap}
+.ai-badge{width:32px;height:32px;border-radius:9px;flex:none;
+  background:radial-gradient(120% 120% at 30% 20%, var(--accent) 0%, #b83f78 100%);
+  display:grid;place-items:center;color:#fff;box-shadow:0 2px 8px rgba(184,63,120,.35)}
+.ai-badge svg{width:18px;height:18px}
+.ai-head .t{display:flex;flex-direction:column;gap:1px}
+.ai-head .t b{font-size:14.5px;letter-spacing:-.01em}
+.ai-head .t span{font-size:11.5px;color:var(--ink-2)}
+.ai-demo-tag{margin-left:auto; font-family:"IBM Plex Mono",monospace; font-size:9.5px; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--accent-ink); background:var(--surface); border:1px solid var(--line-2);
+  padding:3px 8px; border-radius:20px}
+.ai-inputrow{display:flex; gap:9px; align-items:center}
+.ai-input{flex:1; display:flex; align-items:center; gap:9px; background:var(--surface);
+  border:1px solid var(--line-2); border-radius:11px; padding:11px 14px}
+.ai-input:focus-within{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-wash)}
+.ai-input svg{width:18px;height:18px;color:var(--accent);flex:none}
+.ai-input input{border:0;background:transparent;color:var(--ink);font:inherit;font-size:14px;width:100%;outline:none}
+.ai-input input::placeholder{color:var(--ink-3)}
+.ai-ask{height:44px;padding:0 18px;border-radius:11px;border:0;background:var(--accent);color:#fff;
+  font:inherit;font-weight:600;font-size:13.5px;cursor:pointer;flex:none;display:inline-flex;align-items:center;gap:7px}
+.ai-ask:hover{background:var(--accent-press)}
+.ai-ask svg{width:16px;height:16px}
+.ai-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.ai-chip{font-size:12px;color:var(--ink-2);background:var(--surface);border:1px solid var(--line-2);
+  border-radius:20px;padding:6px 12px;cursor:pointer;transition:none}
+.ai-chip:hover{border-color:var(--accent);color:var(--accent-ink);background:var(--accent-wash)}
+.ai-chip::before{content:"✦ ";color:var(--accent)}
+.ai-answer{margin-top:15px;background:var(--surface);border:1px solid var(--line);border-radius:11px;
+  padding:16px 18px;box-shadow:var(--shadow)}
+.ai-answer .meta{display:flex;align-items:center;gap:8px;margin-bottom:9px;
+  font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink)}
+.ai-answer .meta .live{width:7px;height:7px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px var(--good-wash)}
+.ai-answer .body{font-size:13.5px;line-height:1.62;color:var(--ink)}
+.ai-answer .body b{color:var(--ink)}
+.ai-cites{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px;padding-top:13px;border-top:1px solid var(--line)}
+.ai-cites .lbl{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);align-self:center}
+.ai-cite{font-size:12px;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line);border-radius:8px;
+  padding:5px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+.ai-cite:hover{border-color:var(--accent);color:var(--accent-ink)}
+.ai-cite .av{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;color:#fff;
+  font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:9px}
+.ai-thinking{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink-2)}
+.ai-dots{display:inline-flex;gap:4px}
+.ai-dots i{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:aipulse 1s infinite ease-in-out}
+.ai-dots i:nth-child(2){animation-delay:.15s}.ai-dots i:nth-child(3){animation-delay:.3s}
+@keyframes aipulse{0%,80%,100%{opacity:.3;transform:scale(.8)}40%{opacity:1;transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.ai-dots i{animation:none}}
+
+/* smart search toggle */
+.seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line-2);border-radius:9px;padding:2px;gap:2px}
+.seg button{border:0;background:transparent;color:var(--ink-2);font:inherit;font-size:11.5px;font-weight:500;
+  padding:5px 11px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.seg button svg{width:13px;height:13px}
+.seg button.on{background:var(--surface);color:var(--accent-ink);box-shadow:var(--shadow)}
+.reason{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;color:var(--accent-ink);
+  background:var(--accent-wash);border-radius:6px;padding:2px 7px;margin-top:5px;font-weight:500}
+.reason svg{width:11px;height:11px}
+.trans .concepts{margin-bottom:9px;display:flex;gap:6px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ================= MAIN ================= -->
+  <main class="main">
+    <div class="topbar">
+      <div class="h">
+        <span class="blogo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a4 4 0 0 0-4 4v3a4 4 0 0 0 8 0V7a4 4 0 0 0-4-4Z"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg></span>
+        <div class="htext">
+          <span class="kicker">Zoltar AI · Opti-Channels</span>
+          <h1>Conversation Dashboard</h1>
+          <div class="sub">Voice-AI performance for your <b>PURL &amp; call-in</b> campaigns</div>
+        </div>
+      </div>
+      <div class="tools">
+        <button class="btn icon" id="themeBtn" title="Toggle theme" aria-label="Toggle theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v2M12 19v2M5 5l1.5 1.5M17.5 17.5 19 19M3 12h2M19 12h2M5 19l1.5-1.5M17.5 6.5 19 5"/><circle cx="12" cy="12" r="4"/></svg></button>
+        <button class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12"/><path d="m8 11 4 4 4-4"/><path d="M4 19h16"/></svg>Download</button>
+        <button class="btn pri"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h16v4H4z"/><path d="M4 12h10"/><circle cx="18" cy="16" r="3"/><path d="m20.5 18.5 1.5 1.5"/></svg>Export for Billing</button>
+      </div>
+    </div>
+
+    <!-- CONTROL BAR -->
+    <div class="controls">
+      <div class="field">
+        <span class="lbl">Date Range</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+        <input value="2026-08-10 ~ 2026-09-09" aria-label="Date range">
+      </div>
+      <div class="field search">
+        <span class="lbl" style="color:var(--accent-ink)">Find a Contact</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="contactSearch" placeholder="Search by PURL, first name, or last name…" aria-label="Search contacts by PURL, first or last name" autocomplete="off">
+        <button id="clearContact" title="Clear" aria-label="Clear contact search" hidden>×</button>
+      </div>
+      <div class="field">
+        <span class="lbl">Agent</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4M9 13h.01M15 13h.01"/></svg>
+        <select aria-label="Agent"><option>All agents</option><option>Zoltar · Real Estate</option><option>Zoltar · Refi</option></select>
+      </div>
+    </div>
+
+    <!-- AI INTELLIGENCE PANEL -->
+    <div class="ai-card">
+      <div class="ai-head">
+        <span class="ai-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/><path d="m5.6 5.6 1.4 1.4M17 17l1.4 1.4M18.4 5.6 17 7M7 17l-1.4 1.4"/></svg></span>
+        <div class="t"><b>Ask Zoltar Intelligence</b><span>Ask a question about your calls in plain English — the agent reads the transcripts and answers.</span></div>
+        <span class="ai-demo-tag">Demo · illustrative answers</span>
+      </div>
+      <div class="ai-inputrow">
+        <div class="ai-input">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+          <input id="aiInput" placeholder="e.g. What's driving the 'not interested' calls?" aria-label="Ask a question about your calls" autocomplete="off">
+        </div>
+        <button class="ai-ask" id="aiAsk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 14 0M13 6l6 6-6 6"/></svg>Ask</button>
+      </div>
+      <div class="ai-chips" id="aiChips"></div>
+      <div id="aiAnswer"></div>
+    </div>
+
+    <!-- KPI STRIP -->
+    <div class="grid kpis" id="kpis"></div>
+
+    <!-- ROW: funnel / conversion donut / sentiment -->
+    <div class="grid row2">
+      <div class="card">
+        <div class="card-h"><h3>Conversion Funnel</h3><span class="cap">Visit → booked appointment</span></div>
+        <div class="funnel" id="funnel"></div>
+        <div class="note">Each step shows count and its conversion from the step above.</div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>Call Outcomes</h3><span class="cap">18 conversations</span></div>
+        <div class="donut-wrap">
+          <div class="donut"><svg viewBox="0 0 42 42" class="chart" id="donut"></svg><div class="ctr"><b class="mono">28%</b><span>Lead rate</span></div></div>
+          <div class="legend" id="outcomeLegend"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>Sentiment</h3><span class="cap">AI-scored per call</span></div>
+        <div class="sentbar" id="sentbar"></div>
+        <div class="sentmeta" id="sentmeta"></div>
+        <div class="note" style="margin-top:12px">Avg satisfaction <b class="mono" style="color:var(--ink)">4.2 / 5</b> · trending <span style="color:var(--good-ink)">▲</span> vs. prior period.</div>
+      </div>
+    </div>
+
+    <!-- ROW: over-time (wide) + topics -->
+    <div class="grid row3">
+      <div class="card">
+        <div class="card-h"><h3>Conversations Over Time</h3><span class="cap">Requested → completed → evaluated</span></div>
+        <div class="bar-legend">
+          <div class="li"><span class="dot" style="background:var(--s1)"></span>Requested</div>
+          <div class="li"><span class="dot" style="background:var(--s2)"></span>Completed</div>
+          <div class="li"><span class="dot" style="background:var(--s3)"></span>Evaluated</div>
+        </div>
+        <svg viewBox="0 0 720 240" class="chart" id="overtime" role="img" aria-label="Grouped bar chart of conversations over time"></svg>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><h3>Top 5 Topics</h3><span class="cap">Click to filter →</span></div>
+        <div id="topics"></div>
+        <div class="note" style="margin-top:10px">Auto-tagged from transcripts. Trend vs. previous 30 days.</div>
+      </div>
+    </div>
+
+    <!-- ROW: day / hour -->
+    <div class="grid row2" style="grid-template-columns:1fr 1fr 1fr">
+      <div class="card">
+        <div class="card-h"><h3>Calls by Day of Week</h3></div>
+        <svg viewBox="0 0 340 190" class="chart" id="byday" role="img" aria-label="Calls by day of week"></svg>
+      </div>
+      <div class="card" style="grid-column:span 2">
+        <div class="card-h"><h3>Calls by Hour of Day</h3><span class="cap">Eastern Time · best window <b class="mono" style="color:var(--accent-ink)">10a–3p</b></span></div>
+        <svg viewBox="0 0 720 190" class="chart" id="byhour" role="img" aria-label="Calls by hour of day"></svg>
+      </div>
+    </div>
+
+    <!-- CONVERSATION DETAIL -->
+    <div class="card pad0" style="margin-bottom:16px">
+      <div style="padding:16px 18px; display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap">
+        <div><h3 style="font-size:15px">Conversation Detail</h3><div class="note" style="margin-top:2px">Recordings, transcripts, sentiment &amp; auto-tagged topics</div></div>
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap">
+          <div class="seg" role="group" aria-label="Transcript search mode">
+            <button id="modeSmart" class="on" title="AI understands meaning, not just exact words"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5Z"/></svg>Smart</button>
+            <button id="modeLiteral" title="Match the exact text you type">Literal</button>
+          </div>
+          <div class="field trans-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input id="transSearch" placeholder="Search transcripts — try “worried about price” or “in a hurry to move”" aria-label="Search inside transcripts" autocomplete="off">
+            <button id="clearTrans" title="Clear" aria-label="Clear transcript search" hidden>×</button>
+          </div>
+          <div class="eyebrow" id="tableCount">18 conversations</div>
+        </div>
+      </div>
+      <div id="searchBanner"></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>Start Time (ET)</th><th>Caller</th><th>Duration</th><th>Sentiment</th><th>Topics</th><th>Outcome</th><th style="text-align:right">Recording / Transcript</th>
+          </tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div class="tfoot">
+        <span id="rangeLbl">Showing 1–10 of 18</span>
+        <div class="pg">
+          <button id="prev" aria-label="Previous page">‹</button>
+          <span class="mono" id="pageLbl" style="padding:0 8px">1 / 2</span>
+          <button id="next" aria-label="Next page">›</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ===================== SAMPLE DATA ===================== */
+// Realistic mock for a real-estate direct-mail voice agent (DMAI-style).
+const AGENT="Zoltar";
+function tx(lines){return lines;} // [ [who,text], ... ]
+const DATA=[
+ {id:1, first:"Jordyn", last:"Crosby", dt:"Sep 3, 2026 11:51 PM", dur:"1m 24s", sec:84, sent:"pos", outcome:"Lead", topics:["Home valuation","Selling timeline"], rec:"1:24", flag:false,
+  transcript:tx([["Zoltar","Hi Jordyn, thanks for scanning your postcard. Are you thinking about selling your home this year?"],["Jordyn","Yeah, we're weighing it. I'd love to know what our home value looks like right now."],["Zoltar","Homes in your ZIP have appreciated about 6%. I can have an agent send a full valuation. What's your ideal selling timeline?"],["Jordyn","Probably spring, if the market holds."]])},
+ {id:2, first:"Beth", last:"Jackson", dt:"Sep 3, 2026 12:25 PM", dur:"28s", sec:28, sent:"neu", outcome:"Callback", topics:["Schedule appointment"], rec:"0:27", flag:false,
+  transcript:tx([["Zoltar","Hi Beth! How can I help with your property today?"],["Beth","Can someone call me back tomorrow afternoon? I'm heading into a meeting."],["Zoltar","Absolutely, I'll schedule a callback for tomorrow after 1pm."]])},
+ {id:3, first:"Jordyn", last:"Crosby", dt:"Sep 2, 2026 12:09 PM", dur:"12s", sec:12, sent:"neu", outcome:"No answer", topics:["Other"], rec:"0:00", flag:false,
+  transcript:tx([["Zoltar","Hello, this is Zoltar from the home team. Is now a good time?"],["Caller","Sorry, wrong time."]])},
+ {id:4, first:"Jordyn", last:"Crosby", dt:"Sep 1, 2026 10:18 AM", dur:"2m 36s", sec:156, sent:"pos", outcome:"Lead", topics:["Refinance","Commission & fees"], rec:"2:36", flag:false,
+  transcript:tx([["Zoltar","Welcome back Jordyn. Last time you asked about refinance options — want me to pull current rates?"],["Jordyn","Yes. And what commission would you charge if we listed instead?"],["Zoltar","Our listing commission is typically 2.5%. On a refinance there's no commission — just closing costs. Would you like a side-by-side?"],["Jordyn","That would be great, send both."]])},
+ {id:5, first:"Jordyn", last:"Crosby", dt:"Sep 1, 2026 10:13 AM", dur:"2m 31s", sec:151, sent:"neg", outcome:"Not interested", topics:["Pricing / market"], rec:"2:31", flag:true,
+  transcript:tx([["Zoltar","Hi Jordyn, are you happy with your current home or considering a move?"],["Jordyn","Honestly your price estimate seemed way too low compared to my neighbor's sale."],["Zoltar","I understand. I can escalate a full comparative market analysis so the number reflects recent sales."],["Jordyn","I'm not interested right now, the estimate put me off."]])},
+ {id:6, first:"Jordyn", last:"Crosby", dt:"Aug 31, 2026 3:51 PM", dur:"13s", sec:13, sent:"neu", outcome:"No answer", topics:["Other"], rec:"0:13", flag:false,
+  transcript:tx([["Zoltar","Hi, this is Zoltar — is this a good moment to chat about your home?"],["Caller","Can't talk, bye."]])},
+ {id:7, first:"Sara", last:"Boscarino", dt:"Aug 26, 2026 11:40 AM", dur:"19s", sec:19, sent:"pos", outcome:"Callback", topics:["Schedule appointment"], rec:"0:18", flag:false,
+  transcript:tx([["Zoltar","Hi Sara, would you like to book a time with one of our agents?"],["Sara","Yes please, Thursday works. Can we do a home tour?"],["Zoltar","Booked for Thursday. An agent will confirm the tour window."]])},
+ {id:8, first:"Sara", last:"Boscarino", dt:"Aug 26, 2026 11:40 AM", dur:"10s", sec:10, sent:"neu", outcome:"No answer", topics:["Other"], rec:"0:09", flag:false,
+  transcript:tx([["Zoltar","Hello Sara, calling about your recent inquiry."],["Sara","Not now, thanks."]])},
+ {id:9, first:"Sara", last:"Boscarino", dt:"Aug 26, 2026 11:39 AM", dur:"3m 8s", sec:188, sent:"pos", outcome:"Lead", topics:["Home valuation","School district","Cash offer"], rec:"3:07", flag:false,
+  transcript:tx([["Zoltar","Hi Sara! What's most important as you think about moving?"],["Sara","Schools mostly — is this a good school district? And do you take cash offers?"],["Zoltar","This area's schools rate 8/10. We do work with cash-offer buyers who can close in 14 days. Want me to request a cash offer estimate?"],["Sara","Yes, and send me the school ratings."]])},
+ {id:10, first:"Guest", last:"Visit", first2:"gurl", dt:"Aug 25, 2026 1:07 AM", dur:"47s", sec:47, sent:"neu", outcome:"Not interested", topics:["Pricing / market"], rec:"0:00", flag:false,
+  transcript:tx([["Zoltar","Hi there, thanks for visiting your personalized page. Curious about your home's market value?"],["Guest","Just browsing the market, not selling."]])},
+ {id:11, first:"Marcus", last:"Bell", dt:"Aug 24, 2026 2:14 PM", dur:"1m 52s", sec:112, sent:"pos", outcome:"Lead", topics:["Refinance","Home valuation"], rec:"1:51", flag:false,
+  transcript:tx([["Zoltar","Hi Marcus, rates dropped recently — want to explore a refinance on your home value?"],["Marcus","Definitely, what could I save monthly?"],["Zoltar","Based on typical balances, roughly $180–240/mo. I'll have a loan officer confirm."]])},
+ {id:12, first:"Priya", last:"Nair", dt:"Aug 23, 2026 9:02 AM", dur:"2m 4s", sec:124, sent:"pos", outcome:"Appointment", topics:["Schedule appointment","Selling timeline"], rec:"2:03", flag:false,
+  transcript:tx([["Zoltar","Good morning Priya! Ready to pick a listing date?"],["Priya","Yes, let's aim to list in three weeks."],["Zoltar","Perfect — I've booked a prep appointment for this Friday at 10am."]])},
+ {id:13, first:"Dan", last:"Whitfield", dt:"Aug 22, 2026 4:39 PM", dur:"38s", sec:38, sent:"neg", outcome:"Not interested", topics:["Commission & fees"], rec:"0:37", flag:true,
+  transcript:tx([["Zoltar","Hi Dan, any questions about selling?"],["Dan","Your commission is too high, I'll go with a flat-fee service."],["Zoltar","I hear you — we do offer a reduced commission tier. May I have someone explain it?"],["Dan","No thanks."]])},
+ {id:14, first:"Elena", last:"Ruiz", dt:"Aug 21, 2026 12:48 PM", dur:"2m 55s", sec:175, sent:"pos", outcome:"Lead", topics:["Cash offer","Selling timeline"], rec:"2:54", flag:false,
+  transcript:tx([["Zoltar","Hi Elena, would a fast cash offer help with your timeline?"],["Elena","Yes, we need to relocate in 30 days."],["Zoltar","A cash offer can close in two weeks. I'll request one now and an agent will follow up today."]])},
+ {id:15, first:"Guest", last:"Visit", first2:"gurl", dt:"Aug 20, 2026 8:22 PM", dur:"1m 24s", sec:84, sent:"neu", outcome:"Callback", topics:["Home valuation"], rec:"1:23", flag:false,
+  transcript:tx([["Zoltar","Welcome! Want a quick estimate of your home value?"],["Guest","Maybe — can you email it instead? I'll look later."],["Zoltar","Sure, leave an email and I'll send your valuation."]])},
+ {id:16, first:"Tomás", last:"Herrera", dt:"Aug 19, 2026 10:31 AM", dur:"1m 9s", sec:69, sent:"pos", outcome:"Lead", topics:["Refinance"], rec:"1:08", flag:false,
+  transcript:tx([["Zoltar","Hi Tomás, interested in lowering your mortgage payment through a refinance?"],["Tomás","Yes, that's exactly why I scanned the card."],["Zoltar","Great, I'll connect you with a refinance specialist."]])},
+ {id:17, first:"Aisha", last:"Khan", dt:"Aug 19, 2026 10:02 AM", dur:"58s", sec:58, sent:"neu", outcome:"Callback", topics:["School district","Home valuation"], rec:"0:57", flag:true,
+  transcript:tx([["Zoltar","Hi Aisha, how can I help with your move?"],["Aisha","Which neighborhoods have the best schools under $600k?"],["Zoltar","I don't have live listings priced by school zone in front of me — I'll flag this for an agent to answer."]])},
+ {id:18, first:"Robert", last:"Feld", dt:"Aug 18, 2026 3:15 PM", dur:"2m 22s", sec:142, sent:"pos", outcome:"Appointment", topics:["Selling timeline","Home valuation"], rec:"2:21", flag:false,
+  transcript:tx([["Zoltar","Hi Robert, shall we lock in a time to review your valuation?"],["Robert","Yes, next Monday morning is best."],["Zoltar","Done — Monday 9:30am with your listing agent. You'll get a calendar invite."]])},
+];
+DATA.forEach(d=>{
+  d.name = d.first2 ? (d.first2+" "+d.last) : (d.first+" "+d.last);
+  d.initials = d.first2 ? "GV" : (d.first[0]+d.last[0]).toUpperCase();
+  // Personalized URL for this contact (PURL) — how they reached the agent
+  d.purl = (d.first2 ? d.first2 : (d.first+"."+d.last)).toLowerCase().replace(/[^a-z0-9.]/g,'') + ".optihome.co";
+  // contact index: PURL + first + last (top search)
+  d.contactText = (d.name + " " + d.purl).toLowerCase();
+  // transcript index: everything said on the call (in-section search)
+  d.transText = d.transcript.map(l=>l[1]).join(" ").toLowerCase();
+});
+
+const AV_COLORS=["#2a78d6","#e8632e","#1baf7a","#7c5cd6","#d84f7a","#0a9c8f","#c98500","#4a3aa7"];
+function avatarColor(s){let h=0;for(const c of s)h=(h*31+c.charCodeAt(0))>>>0;return AV_COLORS[h%AV_COLORS.length];}
+
+/* ===================== KPIs ===================== */
+const KPIS=[
+ {lbl:"Total Visits", val:"91", meta:"All recorded PURL visits", d:{t:"up",v:"+12%"}, ic:'<path d="M12 5v14M5 12h14"/>'},
+ {lbl:"Conversations", val:"18", meta:"20% of visits engaged", d:{t:"up",v:"+4"}, ic:'<path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2z"/>'},
+ {lbl:"Qualified Leads", val:"5", meta:"28% lead rate", d:{t:"up",v:"+1"}, ic:'<path d="M20 6 9 17l-5-5"/>'},
+ {lbl:"Appointments", val:"2", meta:"Booked from calls", d:{t:"flat",v:"±0"}, ic:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>'},
+ {lbl:"Total Talk Time", val:'24m 37s', meta:"1,476.5 seconds", d:{t:"up",v:"+18%"}, ic:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'},
+ {lbl:"Avg Talk Time", val:'1m 22s', meta:"82.0 s / conversation", d:{t:"dn",v:"-6s"}, ic:'<path d="M2 12h4l3 8 4-16 3 8h4"/>'},
+];
+document.getElementById('kpis').innerHTML=KPIS.map(k=>`
+ <div class="card kpi">
+   <div class="top"><span class="eyebrow">${k.lbl}</span><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">${k.ic}</svg></span></div>
+   <div class="val">${k.val}</div>
+   <div class="meta"><span class="delta ${k.d.t}">${k.d.t==='up'?'▲':k.d.t==='dn'?'▼':'■'} ${k.d.v}</span>${k.meta}</div>
+ </div>`).join('');
+
+/* ===================== FUNNEL ===================== */
+const FUNNEL=[
+ {n:"Visits", v:91, c:"var(--s1)"},
+ {n:"Conversations", v:18, c:"#3f86d0"},
+ {n:"Qualified Leads", v:5, c:"var(--accent)"},
+ {n:"Appointments", v:2, c:"var(--accent-press)"},
+];
+const fmax=FUNNEL[0].v;
+document.getElementById('funnel').innerHTML=FUNNEL.map((s,i)=>{
+ const w=Math.max(6,(s.v/fmax)*100);
+ const rate=i===0?"100%":Math.round(s.v/FUNNEL[i-1].v*100)+"%";
+ return `<div class="fstage"><span class="fn">${s.n}</span><div class="ftrack"><div class="fbar" style="width:${w}%;background:${s.c}">${s.v}</div></div><span class="rate">${rate}</span></div>`;
+}).join('');
+
+/* ===================== OUTCOMES DONUT ===================== */
+const OUTCOMES=[
+ {n:"Lead", v:5, c:"var(--good)"},
+ {n:"Callback requested", v:4, c:"var(--s1)"},
+ {n:"Appointment", v:2, c:"var(--accent)"},
+ {n:"Not interested", v:3, c:"var(--bad)"},
+ {n:"No answer / hangup", v:4, c:"var(--neu)"},
+];
+(function(){
+ const tot=OUTCOMES.reduce((a,b)=>a+b.v,0); let off=0; const R=15.9155, C=2*Math.PI*R;
+ const svg=document.getElementById('donut');
+ svg.innerHTML=`<circle cx="21" cy="21" r="${R}" fill="none" stroke="var(--surface-2)" stroke-width="6"/>`+
+  OUTCOMES.map(o=>{const frac=o.v/tot; const dash=frac*C; const el=`<circle cx="21" cy="21" r="${R}" fill="none" stroke="${o.c}" stroke-width="6" stroke-dasharray="${dash} ${C-dash}" stroke-dashoffset="${-off}" transform="rotate(-90 21 21)" stroke-linecap="butt"/>`; off+=dash; return el;}).join('');
+ document.getElementById('outcomeLegend').innerHTML=OUTCOMES.map(o=>`<div class="li"><span class="dot" style="background:${o.c}"></span>${o.n}<b>${o.v}</b><small>&nbsp;${Math.round(o.v/tot*100)}%</small></div>`).join('');
+})();
+
+/* ===================== SENTIMENT ===================== */
+(function(){
+ const pos=DATA.filter(d=>d.sent==='pos').length, neu=DATA.filter(d=>d.sent==='neu').length, neg=DATA.filter(d=>d.sent==='neg').length;
+ const tot=pos+neu+neg;
+ document.getElementById('sentbar').innerHTML=
+  `<div style="background:var(--good);width:${pos/tot*100}%">${pos}</div>`+
+  `<div style="background:var(--neu);width:${neu/tot*100}%">${neu}</div>`+
+  `<div style="background:var(--bad);width:${neg/tot*100}%">${neg}</div>`;
+ document.getElementById('sentmeta').innerHTML=
+  `<span class="li"><span class="dot" style="background:var(--good)"></span>Positive <b class="mono">${Math.round(pos/tot*100)}%</b></span>`+
+  `<span class="li"><span class="dot" style="background:var(--neu)"></span>Neutral <b class="mono">${Math.round(neu/tot*100)}%</b></span>`+
+  `<span class="li"><span class="dot" style="background:var(--bad)"></span>Negative <b class="mono">${Math.round(neg/tot*100)}%</b></span>`;
+})();
+
+/* ===================== TOP 5 TOPICS ===================== */
+const TOPIC_TREND={"Home valuation":"+15%","Selling timeline":"+8%","Refinance":"+22%","Schedule appointment":"+3%","Commission & fees":"-5%","Cash offer":"+11%","School district":"+6%","Pricing / market":"-9%"};
+function computeTopics(){
+ const m={};
+ DATA.forEach(d=>d.topics.forEach(t=>{ if(t==="Other")return; m[t]=(m[t]||0)+1; }));
+ return Object.entries(m).sort((a,b)=>b[1]-a[1]).slice(0,5);
+}
+let activeTopic=null;
+function renderTopics(){
+ const top=computeTopics(); const max=top[0][1];
+ document.getElementById('topics').innerHTML=top.map((t,i)=>{
+  const tr=TOPIC_TREND[t[0]]||""; const up=tr.startsWith('+');
+  return `<div class="topic ${activeTopic===t[0]?'filtered-on':''}" data-topic="${t[0]}">
+    <div class="tname"><span class="rank">${i+1}</span>${t[0]}</div>
+    <div style="display:flex;align-items:center;gap:8px"><span class="tcount">${t[1]}</span><span class="ttrend" style="color:${up?'var(--good-ink)':'var(--bad-ink)'}">${tr}</span></div>
+    <div class="tbar"><i style="width:${t[1]/max*100}%"></i></div>
+  </div>`;
+ }).join('');
+ document.querySelectorAll('.topic').forEach(el=>el.onclick=()=>{
+  const t=el.dataset.topic; activeTopic = activeTopic===t? null : t;
+  page=0; renderTopics(); renderTable();
+ });
+}
+
+/* ===================== OVER TIME (grouped bar) ===================== */
+(function(){
+ const days=["Aug 10","Aug 13","Aug 16","Aug 19","Aug 22","Aug 25","Aug 28","Aug 31","Sep 3","Sep 6","Sep 9"];
+ const series=[ // requested, completed, evaluated
+  [1,0,0,2,5,3,0,2,2,0,0],
+  [1,0,0,1,5,3,0,2,2,0,0],
+  [1,0,0,1,5,3,0,1,2,0,0],
+ ];
+ const cols=["var(--s1)","var(--s2)","var(--s3)"];
+ const W=720,H=240, ml=30,mr=10,mt=10,mb=34, pw=W-ml-mr, ph=H-mt-mb, ymax=5;
+ let s=`<line class="gridline" x1="${ml}" y1="${mt+ph}" x2="${W-mr}" y2="${mt+ph}" stroke="var(--baseline,#c3c2b7)"/>`;
+ for(let y=1;y<=ymax;y++){const yy=mt+ph-(y/ymax)*ph; s+=`<line class="gridline" x1="${ml}" y1="${yy}" x2="${W-mr}" y2="${yy}"/><text class="axis-lbl" x="${ml-7}" y="${yy+3}" text-anchor="end">${y}</text>`;}
+ const gw=pw/days.length, bw=Math.min(9,gw/5);
+ days.forEach((d,i)=>{
+  const gx=ml+i*gw+gw/2;
+  for(let sVal=0;sVal<3;sVal++){
+   const v=series[sVal][i]; const bh=(v/ymax)*ph; const bx=gx-(bw*1.5+2)+sVal*(bw+1);
+   if(v>0) s+=`<rect x="${bx}" y="${mt+ph-bh}" width="${bw}" height="${bh}" rx="2.5" fill="${cols[sVal]}"><title>${d} · ${['Requested','Completed','Evaluated'][sVal]}: ${v}</title></rect>`;
+  }
+  s+=`<text class="axis-lbl" x="${gx}" y="${H-14}" text-anchor="middle" transform="rotate(-16 ${gx} ${H-14})">${d}</text>`;
+ });
+ document.getElementById('overtime').innerHTML=s;
+})();
+
+/* ===================== BY DAY (single hue) ===================== */
+(function(){
+ const days=["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+ const vals=[2,5,4,3,4,0,0]; const W=340,H=190,ml=24,mr=8,mt=8,mb=26,pw=W-ml-mr,ph=H-mt-mb,ymax=5;
+ let s=`<line class="gridline" x1="${ml}" y1="${mt+ph}" x2="${W-mr}" y2="${mt+ph}"/>`;
+ for(let y=1;y<=ymax;y++){const yy=mt+ph-(y/ymax)*ph;s+=`<line class="gridline" x1="${ml}" y1="${yy}" x2="${W-mr}" y2="${yy}"/><text class="axis-lbl" x="${ml-6}" y="${yy+3}" text-anchor="end">${y}</text>`;}
+ const gw=pw/days.length, bw=gw*0.5;
+ days.forEach((d,i)=>{const gx=ml+i*gw+gw/2;const v=vals[i];const bh=(v/ymax)*ph;
+  if(v>0)s+=`<rect x="${gx-bw/2}" y="${mt+ph-bh}" width="${bw}" height="${bh}" rx="3" fill="var(--accent)"><title>${d}: ${v}</title></rect>`;
+  s+=`<text class="axis-lbl" x="${gx}" y="${H-9}" text-anchor="middle">${d}</text>`;});
+ document.getElementById('byday').innerHTML=s;
+})();
+
+/* ===================== BY HOUR ===================== */
+(function(){
+ const vals=[0,0,0,0,0,0,0,0,0,1,3,2,2,1,3,1,2,0,0,0,0,0,1,1];
+ const W=720,H=190,ml=24,mr=8,mt=8,mb=26,pw=W-ml-mr,ph=H-mt-mb,ymax=3;
+ let s=`<line class="gridline" x1="${ml}" y1="${mt+ph}" x2="${W-mr}" y2="${mt+ph}"/>`;
+ for(let y=1;y<=ymax;y++){const yy=mt+ph-(y/ymax)*ph;s+=`<line class="gridline" x1="${ml}" y1="${yy}" x2="${W-mr}" y2="${yy}"/><text class="axis-lbl" x="${ml-6}" y="${yy+3}" text-anchor="end">${y}</text>`;}
+ const gw=pw/24, bw=gw*0.55;
+ vals.forEach((v,i)=>{const gx=ml+i*gw+gw/2;const bh=(v/ymax)*ph; const inWin=i>=10&&i<=15;
+  if(v>0)s+=`<rect x="${gx-bw/2}" y="${mt+ph-bh}" width="${bw}" height="${bh}" rx="2.5" fill="${inWin?'var(--accent)':'#c9885f'}"><title>${String(i).padStart(2,'0')}:00 — ${v}</title></rect>`;
+  if(i%2===0)s+=`<text class="axis-lbl" x="${gx}" y="${H-9}" text-anchor="middle">${String(i).padStart(2,'0')}</text>`;});
+ document.getElementById('byhour').innerHTML=s;
+})();
+
+/* ===================== TABLE + SEARCH ===================== */
+// Two independent searches: contactQuery (PURL / first / last name, top bar)
+// and transQuery (transcript body, inside Conversation Detail). Plus topic filter.
+const PER=10; let page=0; let contactQuery=""; let transQuery="";
+const sentMap={pos:["pos","Positive"],neu:["neu","Neutral"],neg:["neg","Negative"]};
+const outClass={"Lead":"pos","Appointment":"pos","Callback":"neu","Not interested":"neg","No answer":"neu"};
+
+function esc(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function hl(text,q){ if(!q)return esc(text); const re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig'); return esc(text).replace(re,'<mark>$1</mark>');}
+
+/* ---- SMART (semantic) SEARCH — concept expansion demo ----
+   In production this is embeddings + a vector store; here we approximate it with a
+   concept map so natural-language queries match by meaning, not exact words. */
+let smartMode=true; let smartCtx={concepts:[],signals:[]};
+const CONCEPTS=[
+ {label:"Pricing / value concern", triggers:["price","pricing","expensive","cost","costly","overpriced","afford","commission","fee","fees","money","too high","worried about price"], signals:["commission","too low","estimate","closing costs","flat-fee","2.5%","seemed way too low","price estimate"]},
+ {label:"Refinance / mortgage", triggers:["refinance","refi","mortgage","rate","rates","loan","payment","lower my"], signals:["refinance","mortgage","rates dropped","loan officer","lowering your mortgage","save monthly"]},
+ {label:"Schools / neighborhood fit", triggers:["school","schools","education","district","kids","children","neighborhood","neighbourhood"], signals:["school","schools rate","best schools","school district","school ratings","school zone"]},
+ {label:"Urgency / timeline", triggers:["urgent","fast","hurry","quick","quickly","soon","timeline","relocate","relocating","asap","when are","how soon","in a hurry","need to move"], signals:["relocate in 30 days","close in 14 days","close in two weeks","list in three weeks","next monday","tomorrow","thursday","spring","aim to list"]},
+ {label:"Cash offer / fast sale", triggers:["cash","cash offer","investor","fast sale","quick sale","sell fast"], signals:["cash offer","cash-offer","fast cash offer","close in 14 days","close in two weeks"]},
+ {label:"Negative sentiment / objection", triggers:["unhappy","upset","frustrated","angry","negative","objection","complaint","annoyed","dissatisfied","turned off","not interested","pushed back","problem","concern"], signals:["too low","too high","not interested","put me off","flat-fee service"]},
+ {label:"Appointment / booking intent", triggers:["appointment","booking","book","booked","meeting","tour","visit","calendar","schedule a"], signals:["booked","appointment","home tour","listing date","calendar invite","pick a listing date","confirm the tour"]},
+ {label:"Home valuation interest", triggers:["value","valuation","worth","appraisal","estimate","how much","home value","market value"], signals:["valuation","home value","appreciated","market value","full valuation","review your valuation"]},
+];
+function computeSmart(q){
+ const ql=q.toLowerCase();
+ const cons=CONCEPTS.filter(c=>c.triggers.some(t=>ql.includes(t)));
+ const signals=[...new Set(cons.flatMap(c=>c.signals))];
+ return {concepts:cons.map(c=>c.label), signals};
+}
+function matchesTrans(d){
+ if(!transQuery) return true;
+ const ql=transQuery.toLowerCase();
+ if(!smartMode) return d.transText.includes(ql);
+ if(smartCtx.signals.length) return smartCtx.signals.some(s=>d.transText.includes(s)) || d.transText.includes(ql);
+ return ql.split(/\W+/).filter(Boolean).every(w=>d.transText.includes(w)); // fallback: all words
+}
+function transHighlightTerms(){
+ if(!transQuery) return [];
+ if(!smartMode) return [transQuery];
+ const t = smartCtx.signals.length? smartCtx.signals.slice() : transQuery.toLowerCase().split(/\W+/).filter(Boolean);
+ t.push(transQuery); return t;
+}
+function hlMulti(text,terms){
+ const uniq=[...new Set((terms||[]).filter(Boolean))].sort((a,b)=>b.length-a.length).map(t=>t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+ if(!uniq.length) return esc(text);
+ return esc(text).replace(new RegExp('('+uniq.join('|')+')','ig'),'<mark>$1</mark>');
+}
+
+function filtered(){
+ smartCtx = (smartMode && transQuery)? computeSmart(transQuery) : {concepts:[],signals:[]};
+ let rows=DATA;
+ if(activeTopic) rows=rows.filter(d=>d.topics.includes(activeTopic));
+ if(contactQuery){ const q=contactQuery.toLowerCase(); rows=rows.filter(d=>d.contactText.includes(q)); }
+ if(transQuery){ rows=rows.filter(matchesTrans); }
+ return rows;
+}
+function renderTable(){
+ const rows=filtered(); const tot=rows.length;
+ const pages=Math.max(1,Math.ceil(tot/PER)); if(page>=pages)page=0;
+ const slice=rows.slice(page*PER,page*PER+PER);
+ const tb=document.getElementById('tbody');
+
+ // banner — reflect whichever filters are active
+ const bn=document.getElementById('searchBanner'); const parts=[];
+ if(transQuery){
+  if(smartMode && smartCtx.concepts.length){
+   parts.push(`transcript “<b>${esc(transQuery)}</b>” → interpreted as <b>${esc(smartCtx.concepts.join(', '))}</b>`);
+  } else {
+   const hits=rows.reduce((a,d)=>a+(d.transText.split(transQuery.toLowerCase()).length-1),0);
+   parts.push(`transcript “<b>${esc(transQuery)}</b>”${smartMode?' <b>(smart)</b>':''} (<b>${hits}</b> literal match${hits!==1?'es':''})`);
+  }
+ }
+ if(contactQuery) parts.push(`contact “<b>${esc(contactQuery)}</b>”`);
+ if(activeTopic) parts.push(`topic “<b>${esc(activeTopic)}</b>”`);
+ if(parts.length){
+  bn.innerHTML=`<div class="searchbanner"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Filtered by ${parts.join(' + ')} — <b>${tot}</b> conversation${tot!==1?'s':''}. <a href="#" id="clr2" style="color:inherit;text-decoration:underline">clear all</a></div>`;
+  document.getElementById('clr2').onclick=e=>{e.preventDefault();clearAll();};
+ } else bn.innerHTML="";
+
+ if(tot===0){ tb.innerHTML=`<tr><td colspan="7"><div class="empty">No conversations match your filters. Try another phrase or clear the filters.</div></td></tr>`; }
+ else tb.innerHTML=slice.map(d=>{
+  const oc=outClass[d.outcome]||"neu";
+  const chips=d.topics.filter(t=>t!=="Other").slice(0,2).map(t=>`<span class="chip">${t}</span>`).join(' ')||'<span class="chip">—</span>';
+  return `<tr data-id="${d.id}">
+   <td class="tm">${d.dt}</td>
+   <td><div class="caller"><span class="avatar" style="background:${avatarColor(d.initials)}">${d.initials}</span><span class="cinfo"><span class="cname">${hl(d.name,contactQuery)}${d.flag?' <span class="flag" title="Contained a question the agent could not answer"><svg viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2\'><path d=\'M12 9v4M12 17h.01\'/><path d=\'M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z\'/></svg></span>':''}</span><span class="cpurl">${hl(d.purl,contactQuery)}</span></span></div></td>
+   <td class="dur">${d.dur}</td>
+   <td><span class="pill ${sentMap[d.sent][0]}"><span class="dot" style="background:currentColor"></span>${sentMap[d.sent][1]}</span></td>
+   <td>${chips}</td>
+   <td><span class="pill ${oc}">${d.outcome}</span></td>
+   <td style="text-align:right"><div style="display:inline-flex;gap:6px">
+     <button class="tbtn" title="Play recording"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></button>
+     <button class="tbtn tr" title="View transcript"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16M4 10h16M4 15h10"/></svg></button>
+   </div></td>
+  </tr>`;
+ }).join('');
+
+ // transcript expand — auto-open when a transcript search is active so the match is visible
+ tb.querySelectorAll('.tr').forEach(btn=>btn.onclick=()=>{
+  const tr=btn.closest('tr'); const id=+tr.dataset.id;
+  const nx=tr.nextElementSibling;
+  if(nx&&nx.classList.contains('trow-detail')){nx.remove();return;}
+  openTranscript(tr,id);
+ });
+ if(transQuery){ tb.querySelectorAll('tr[data-id]').forEach(tr=>openTranscript(tr,+tr.dataset.id)); }
+
+ document.getElementById('rangeLbl').textContent = tot? `Showing ${page*PER+1}–${Math.min(tot,page*PER+PER)} of ${tot}` : "No results";
+ document.getElementById('pageLbl').textContent = `${page+1} / ${pages}`;
+ document.getElementById('prev').disabled=page===0;
+ document.getElementById('next').disabled=page>=pages-1;
+ const filt=(contactQuery||transQuery||activeTopic)?' · filtered':'';
+ document.getElementById('tableCount').textContent = `${tot} conversation${tot!==1?'s':''}${filt}`;
+}
+function openTranscript(tr,id){
+ if(tr.nextElementSibling&&tr.nextElementSibling.classList.contains('trow-detail'))return;
+ const d=DATA.find(x=>x.id===id);
+ const terms=transHighlightTerms();
+ const reason=(smartMode && transQuery && smartCtx.concepts.length)
+  ? `<div class="concepts">${smartCtx.concepts.map(c=>`<span class="reason"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5Z"/></svg>Matched: ${esc(c)}</span>`).join('')}</div>` : '';
+ const det=document.createElement('tr'); det.className='trow-detail';
+ det.innerHTML=`<td colspan="7"><div class="trans">${reason}${d.transcript.map(l=>`<div><span class="who">${l[0]}:</span> ${hlMulti(l[1],terms)}</div>`).join('')}</div></td>`;
+ tr.after(det);
+}
+function toggleClearBtn(id,val){document.getElementById(id).hidden=!val;}
+function clearAll(){
+ contactQuery=""; transQuery=""; activeTopic=null;
+ document.getElementById('contactSearch').value=""; document.getElementById('transSearch').value="";
+ toggleClearBtn('clearContact',""); toggleClearBtn('clearTrans','');
+ page=0; renderTopics(); renderTable();
+}
+
+const cs=document.getElementById('contactSearch');
+cs.addEventListener('input',()=>{ contactQuery=cs.value.trim(); toggleClearBtn('clearContact',cs.value); page=0; renderTable(); });
+document.getElementById('clearContact').onclick=()=>{cs.value="";contactQuery="";toggleClearBtn('clearContact','');page=0;renderTable();};
+
+const ts=document.getElementById('transSearch');
+ts.addEventListener('input',()=>{ transQuery=ts.value.trim(); toggleClearBtn('clearTrans',ts.value); page=0; renderTable(); });
+document.getElementById('clearTrans').onclick=()=>{ts.value="";transQuery="";toggleClearBtn('clearTrans','');page=0;renderTable();};
+
+document.getElementById('prev').onclick=()=>{if(page>0){page--;renderTable();}};
+document.getElementById('next').onclick=()=>{page++;renderTable();};
+
+/* smart / literal mode toggle */
+function setMode(s){ smartMode=s;
+ document.getElementById('modeSmart').classList.toggle('on',s);
+ document.getElementById('modeLiteral').classList.toggle('on',!s);
+ document.getElementById('transSearch').placeholder = s
+  ? 'Search transcripts — try “worried about price” or “in a hurry to move”'
+  : 'Search transcripts — matches the exact text you type';
+ page=0; renderTable();
+}
+document.getElementById('modeSmart').onclick=()=>setMode(true);
+document.getElementById('modeLiteral').onclick=()=>setMode(false);
+
+/* ===================== ASK ZOLTAR INTELLIGENCE (agent Q&A demo) ===================== */
+const ASK=[
+ {q:"What's driving the 'not interested' calls?",
+  a:`Three conversations ended <b>not interested</b>, and pricing — not disinterest — drove two of them. <b>Jordyn Crosby</b> felt the home-value estimate came in too low versus a neighbor's recent sale, and <b>Dan Whitfield</b> pushed back on commission and left for a flat-fee service. The third was an anonymous PURL visitor simply browsing the market. <b>Takeaway:</b> a proactive comparative market analysis and a clearly presented reduced-commission tier could recover the two pricing objections.`,
+  cites:[5,13,10]},
+ {q:"Who are the hottest leads to follow up first?",
+  a:`Prioritize by intent and urgency. <b>Elena Ruiz</b> needs to relocate within 30 days and asked for a cash offer — call today. <b>Priya Nair</b> and <b>Robert Feld</b> have already booked appointments and are ready to list. <b>Sara Boscarino</b> (a 3-minute call about schools and a cash offer) and refinance-ready <b>Marcus Bell</b> round out the top tier.`,
+  cites:[14,12,18,9,11]},
+ {q:"What questions did Zoltar fail to answer?",
+  a:`One clear knowledge gap: <b>Aisha Khan</b> asked which neighborhoods have the best schools under $600k, and Zoltar had no listing data priced by school zone, so it flagged the call for a human. Two other flagged calls were pricing objections Zoltar escalated rather than resolved (<b>Jordyn Crosby</b>, <b>Dan Whitfield</b>). Feeding school-zone-by-price data to the agent would close the most common gap.`,
+  cites:[17,5,13]},
+ {q:"Summarize the top objections this period",
+  a:`Two themes account for nearly every objection: <b>“the estimate is too low”</b> (valuation credibility) and <b>“your commission is too high”</b> (fee sensitivity, with a flat-fee competitor named). Both are recoverable — a CMA addresses the first and a transparent reduced-commission option the second.`,
+  cites:[5,13]},
+ {q:"How did sentiment trend this period?",
+  a:`Sentiment skews positive: <b>50%</b> positive (9 of 18), <b>39%</b> neutral, and <b>11%</b> negative (2 calls), with an average satisfaction of <b>4.2 / 5</b>. Both negative calls were pricing-related, so sentiment is largely a lagging signal of the same valuation and commission objections.`,
+  cites:[]},
+];
+function renderAsk(){
+ document.getElementById('aiChips').innerHTML=ASK.map((x,i)=>`<span class="ai-chip" data-i="${i}">${esc(x.q)}</span>`).join('');
+ document.querySelectorAll('.ai-chip').forEach(el=>el.onclick=()=>{ document.getElementById('aiInput').value=ASK[+el.dataset.i].q; runAsk(); });
+}
+function citesHtml(ids){
+ if(!ids||!ids.length) return '';
+ return `<div class="ai-cites"><span class="lbl">Cited calls</span>${ids.map(id=>{const d=DATA.find(x=>x.id===id);return `<span class="ai-cite" data-id="${id}"><span class="av" style="background:${avatarColor(d.initials)}">${d.initials}</span>${esc(d.name)} · ${d.dt.split(',')[0]}</span>`;}).join('')}</div>`;
+}
+function wireCites(){
+ document.querySelectorAll('.ai-cite').forEach(el=>el.onclick=()=>{
+  const d=DATA.find(x=>x.id===+el.dataset.id);
+  document.getElementById('contactSearch').value=d.name; contactQuery=d.name; toggleClearBtn('clearContact',d.name);
+  transQuery=""; document.getElementById('transSearch').value=""; toggleClearBtn('clearTrans','');
+  activeTopic=null; page=0; renderTopics(); renderTable();
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.querySelector('.card.pad0').scrollIntoView({behavior:reduce?'auto':'smooth', block:'start'});
+ });
+}
+function freeAnswer(q){
+ const ctx=computeSmart(q);
+ let rows;
+ if(ctx.signals.length) rows=DATA.filter(d=>ctx.signals.some(s=>d.transText.includes(s)));
+ else { const w=q.toLowerCase().split(/\W+/).filter(Boolean); rows=DATA.filter(d=>w.some(x=>d.transText.includes(x)||d.contactText.includes(x))); }
+ if(!rows.length) return {a:`I couldn't find calls matching that in the sample data. Try a suggested question, or ask about pricing, refinance, schools, timelines, cash offers, or sentiment.`, cites:[]};
+ const leads=rows.filter(d=>d.outcome==='Lead'||d.outcome==='Appointment').length;
+ const conc=ctx.concepts.length? ctx.concepts.join(', ') : `“${esc(q)}”`;
+ const a=`I found <b>${rows.length}</b> conversation${rows.length!==1?'s':''} related to <b>${conc}</b>${leads?`, of which <b>${leads}</b> became a lead or booked an appointment`:''}. The most relevant callers are cited below — open any transcript to see the matching moments.`;
+ return {a, cites:rows.slice(0,5).map(d=>d.id)};
+}
+function runAsk(){
+ const q=document.getElementById('aiInput').value.trim(); if(!q) return;
+ const box=document.getElementById('aiAnswer');
+ box.innerHTML=`<div class="ai-answer"><div class="ai-thinking">Zoltar is reading ${DATA.length} transcripts<span class="ai-dots"><i></i><i></i><i></i></span></div></div>`;
+ const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+ setTimeout(()=>{
+  const preset=ASK.find(x=>x.q.toLowerCase()===q.toLowerCase());
+  const r = preset? {a:preset.a,cites:preset.cites} : freeAnswer(q);
+  box.innerHTML=`<div class="ai-answer"><div class="meta"><span class="live"></span>Zoltar Intelligence · grounded in ${DATA.length} calls</div><div class="body">${r.a}</div>${citesHtml(r.cites)}</div>`;
+  wireCites();
+ }, reduce?0:700);
+}
+document.getElementById('aiAsk').onclick=runAsk;
+document.getElementById('aiInput').addEventListener('keydown',e=>{ if(e.key==='Enter') runAsk(); });
+renderAsk();
+
+/* theme toggle */
+document.getElementById('themeBtn').onclick=()=>{
+ const cur=document.documentElement.getAttribute('data-theme');
+ const dark=cur? cur==='dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+ document.documentElement.setAttribute('data-theme', dark?'light':'dark');
+};
+
+renderTopics(); renderTable();
+</script>
+</body>
+</html>

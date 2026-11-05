@@ -10,26 +10,27 @@ Reads `input/contacts.csv` and `input/agentConversationEvents_nnnnn.csv` where n
 During every run, the system will produces event rows for those contacts, matching the schema of the real event export exactly. 
 Output goes to `output/` and nowhere else.
 
-**Output target:** CSV in the same format as `reference/Sample_Conversation_Export.csv`
+**Output target:** CSV in the same format as `input/agentConversationEvents_nnnnn.csv`
 
 ## Reference material (read these before writing any code)
 
 | File | What it is |
 |---|---|
-| `reference/Sample_Conversation_Export.csv` | **Real export** — AI conversations, acct 38525, Aug 2026. 59 rows, 5 contacts. The schema here is authoritative. |
+| `input/agentConversationEvents_nnnnn.csv` | **Real export** — AI conversations, where `nnnnn` is the account number (`acctID`). Example: acct 38525, Aug 2026, 59 rows, 5 contacts. The schema here is authoritative. |
 | `reference/event_codes.md` | Codes, journey model, field rules, JSON payload shapes — all derived from that export. |
-| `reference/Sample_Conversation_Export.html` | Design reference for any preview UI. |
+| `input/agentConversationEvents_nnnnn.csv` | Design reference for any preview UI. |
 
 If `reference/event_codes.md` disagrees with the export about field names, types, or formats, **the export is correct** 
 Tell me about the conflict rather than picking one silently.
 
 ## The schema in one paragraph
 
-The export is a **contact ⋈ event join**: 32 columns, where the contact block
+The export is a **contact ⋈ event join**, where the contact block
 (`PURL`, `_id`, `firstname`, `lastname`, `email`, address fields, `acctID`) 
 repeats identically on every one of that contact's event rows, and the event block
 (`app_code`, `event_code`, `event_date`, `event_path`, `event_element`, `app_code`)
-and other columns listed in the file `reference/Sample_Conversation_Export.csv`
+and other columns listed in the file `input/agentConversationEvents_nnnnn.csv`.
+The output header is that file's header exactly — same columns, same order.
 `purl` and `_id` uniquely identify a **contact** with its personalized URL and database objectId.
 
 ## Generation rules
@@ -95,11 +96,9 @@ Timing constraints that must hold:
   Output to `output/` only. If a task seems to require a live write, stop and ask.
 - Never commit anything from `input/` or `output/`, and never commit
   `reference/event_table_sample.csv` — all contain real client contact data.
-- Generated emails, phones and names must be obviously synthetic. **Never reuse a
-  real value from the sample export** in generated output.
 - No credentials, account codes, or endpoint URLs in source. Read them from the
   environment and fail loudly if absent.
-- If generated output doesn't match the sample export's headers exactly — same
+- If generated output doesn't match the headers of `input/agentConversationEvents_nnnnn.csv` exactly — same
   columns, same order — fail the run. Don't coerce or silently drop columns.
 
 ## Stack and commands

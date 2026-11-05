@@ -1,10 +1,11 @@
 # Zoltar Voice-AI Event Reference
 
-Derived from `reference/event_table_sample.csv` (Zoltar conversation export,
-acct 38525, Aug 2026 — 59 rows, 5 contacts), cross-checked against the JS SDK
-Event Dev Spec and the Matchback Requirements.
+Derived from `input/agentConversationEvents_nnnnn.csv`, where `nnnnn` is the
+account number (example: acct 38525, Aug 2026 — 59 rows, 5 contacts),
+cross-checked against the JS SDK Event Dev Spec and the Matchback Requirements.
 
-Where this document and the export disagree, **the export wins.**
+Where this document and `CLAUDE.md` disagree, **`CLAUDE.md` wins.** Where this
+document and the export disagree about field names, types or formats, the export wins.
 
 ---
 
@@ -42,15 +43,19 @@ types and will pollute the dashboard:
           └─> 50532 (completed)  ──> 50533 (evaluated)
 ```
 
-Observed in the export:
+Generation targets (from `CLAUDE.md`):
 
-- **Visits are frequent and standalone.** 36 of 59 rows are `30500`. Most visits
-  never lead to a conversation. A contact accumulates visits over days or weeks.
-- **`50531` does not guarantee `50532`.** 9 requested, 7 completed — 2 sessions were
-  abandoned before connecting. Model roughly a 20–25% drop-off here. An orphan
-  `50531` with no completion is valid data and must be generatable.
-- **`50532` and `50533` are always paired**, 7 and 7, never one without the other.
-- A contact can hold several complete conversations. Beth Jackson has 3.
+- **Visits are frequent and standalone.** A contact accumulates visits over days
+  or weeks. **20–25% of contacts with a `30500` go on to a `50531`**; the rest
+  have `30500` only.
+- **`50531` does not guarantee `50532`.** At least 95% of `50531` rows have a
+  matching `50532`; 5% or fewer are abandoned. An orphan `50531` with no
+  completion is valid data and must be generatable.
+- **`50532` and `50533` are always paired** — every `50532` has exactly one `50533`.
+- A contact can hold several complete conversations.
+
+Observed in the acct 38525 example: 36 of 59 rows are `30500`; 9 requested,
+7 completed, 7 evaluated.
 
 ### Timing
 
@@ -72,16 +77,16 @@ Getting this wrong is the fastest way to make generated rows obviously synthetic
 
 ---
 
-## 3. Schema — 32 columns
+## 3. Schema
 
-Column order as exported:
+The output header must match the header of `input/agentConversationEvents_nnnnn.csv`
+exactly — same columns, same order. In the acct 38525 example:
 
 ```
-PURL, address1, address2, city, email, firstname, isseed, lastname, phone,
+PURL, email, firstname, isseed, lastname, address1, address2, city, phone,
 state, zip, _id, event_code, event_date, event_path, event_element, app_code,
-Browser, Device, OS, Platform, IP, event_id, audio_transcript, audio_recording,
-tokens_used, audio_time, data, acctID, ai_agent_email, ai_agent_phone,
-ai_agent_requestcallback
+Browser, Device, OS, Platform, IP, audio_transcript, audio_recording,
+tokens_used, audio_time, data, acctID
 ```
 
 The export is a **contact ⋈ event join** — contact columns are denormalized onto
@@ -103,7 +108,6 @@ every event row and repeat identically for all of that contact's events.
 
 | Column | Notes |
 |---|---|
-| `event_id` | 24-char hex ObjectId, **unique per row** |
 | `event_code` | See §1 |
 | `event_date` | See timestamp formats above |
 | `event_path` | Bare host: `zoltar.secure.mdl.io`. Occasionally `zoltar.secure.mdl.io/{purl}`. **Not a full URL, no query string.** |
@@ -115,15 +119,14 @@ every event row and repeat identically for all of that contact's events.
 | Code | Browser | Device | OS / Platform | IP |
 |---|---|---|---|---|
 | `30500` | Firefox / Chrome / Edge / Safari | desktop, mobile | `Windows 10.0`/`Microsoft Windows`, `OS X`/`iPhone`, `Linux 64`/`Linux`, `Linux`/`Android`, `OS X`/`Apple Mac` | Real client IP + CDN hop, comma-separated: `2600:1700:...:a0b4, 18.68.47.239` |
-| `50531` | Real browser (inherited from visitor) | desktop, mobile | Real | Internal: `::ffff:10.23.x.x` |
-| `50532` | `unknown` | `desktop` | `unknown` / `unknown` | Internal: `::ffff:10.23.x.x` |
-| `50533` | `unknown` | `desktop` | `unknown` / `unknown` | Internal: `::ffff:10.23.x.x` |
+| `50531` | Real browser (inherited from visitor) | desktop, mobile | Real | Blank |
+| `50532` | Blank | Blank | Blank / Blank | Blank |
+| `50533` | Blank | Blank | Blank / Blank | Blank |
 
-`50532`/`50533` are server-generated, which is why the fingerprint collapses to
-`unknown` and `Device` is always `desktop` regardless of what the visitor used.
-
-Observed internal IPs: `::ffff:10.23.0.141`, `::ffff:10.23.0.252`,
-`::ffff:10.23.1.71`, `::ffff:10.23.1.196`.
+`50532`/`50533` are server-generated, so `Browser`, `Device`, `OS` and `Platform`
+are always blank regardless of what the visitor used. All `505xx` IPs are blank.
+(The source export carries `unknown`/`desktop` and internal `::ffff:10.23.x.x`
+IPs on these rows; per `CLAUDE.md`, output blanks them.)
 
 ### Payload columns — populated only on specific codes
 
@@ -135,8 +138,7 @@ Observed internal IPs: `::ffff:10.23.0.141`, `::ffff:10.23.0.252`,
 | `audio_time` | `50532` | Float seconds |
 | `data` | `50533` only, and **only ~43% of them** | JSON, see below |
 
-Everything else is empty string, not null. `ai_agent_email`, `ai_agent_phone`,
-`ai_agent_requestcallback` are empty throughout this export.
+Everything else is empty string, not null.
 
 > The `{uuid4}` in transcript and recording URLs is the **same UUID** for both
 > columns on a given row. Generate one per conversation.
@@ -215,17 +217,10 @@ What does apply:
   never post it anywhere outside `output/`.
 - The `data` payload on `50533` is *supposed* to contain name, email and phone —
   that is the agent's captured lead info and the whole point of the field.
-- Generated values must be obviously synthetic. Never reuse a real email or phone
-  from the sample export in generated output.
 
 ---
 
 ## 6. Open items
 
-- [ ] `ai_agent_email` / `ai_agent_phone` / `ai_agent_requestcallback` are empty in
-      this export. Confirm whether they are populated in other accounts and by what.
 - [ ] `isseed` — confirm the values used to flag client test records.
 - [ ] Whether `event_path` ever carries a full URL with query string in this stream.
-- [ ] Whether a `50532` can exist without a `50533` under any failure mode.
-- [ ] Confirm the internal IP range is stable, or whether `::ffff:10.23.x.x` is
-      incidental to this deployment.

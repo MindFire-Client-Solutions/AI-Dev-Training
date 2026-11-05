@@ -46,15 +46,20 @@ event_date, event_path, event_element, app_code, Browser, Device, OS, Platform, 
 - Only the four codes in `reference/event_codes.md` §1: `30500`, `50531`, `50532`, `50533`. 
   Never emit any other codes — they belong to different campaign types and will pollute the dashboard.
 - `app_code` is always the first three digits of `event_code`.
-- During every run, use a randomly selected number of contacts which will have a distribution of event records associated with each of them, following the `Journey model` described below. To clarify, 70-80% of the contacts selected should have 30500 only. Of the rest, all will have 50531, and about 95% of more will have 50532 and 50533. Any contact that has a 50532, must have a cirresponding 50533.
+- During every run, use a randomly selected number of contacts, each with a sequence of
+  event records following the `Journey model` below. Funnel rates (configurable constants):
+  - 20–25% of contacts that have a `30500` also have a `50531`. The rest have `30500` only.
+  - At least 95% of `50531` rows have a matching `50532`. The rest are abandoned, which
+    leaves a valid orphan `50531`.
+  - Every `50532` has exactly one matching `50533`.
 - Please make sure to copy event records from matching contact _ids for the same contact in the output file.
 - The contact block in the output file may change from the `input/agentConversationEvents_nnnnn.csv` as long as it matches with a contact row in the file `input/contacts.csv`, the input file only has the contact block to identify which event rows go together with the same contact.
 
 ### Journey model — this is the core of the generator
 
 ```
-30500 (visit, repeatable, most contacts never go further)
-   └─> 50531 (requested)   ~20-25% abandon here, producing a valid orphan row
+30500 (visit, repeatable)   20–25% of visiting contacts go on to request
+   └─> 50531 (requested)    ≤5% abandon here, producing a valid orphan row
           └─> 50532 (completed)  ──> 50533 (evaluated, always paired)
 ```
 
@@ -108,7 +113,7 @@ funnel (requested / completed / evaluated, with the abandon count), `audio_time`
 min/median/max, date range produced, and the seed.
 
 Sanity check against the sample's own shape: visits should dominate, completed
-should trail requested by ~10%, and evaluated should equal completed exactly.
+should be ≥95% of requested, and evaluated should equal completed exactly.
 
 ## Working style for this repo
 

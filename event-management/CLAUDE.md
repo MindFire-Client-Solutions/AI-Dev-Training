@@ -18,7 +18,7 @@ Output goes to `output/` and nowhere else.
 |---|---|
 | `reference/Sample_Conversation_Export.csv` | **Real export** — AI conversations, acct 38525, Aug 2026. 59 rows, 5 contacts. The schema here is authoritative. |
 | `reference/event_codes.md` | Codes, journey model, field rules, JSON payload shapes — all derived from that export. |
-| `reference/Zoltar_AI_Dashboard_Intelligence_Demo.html` | Design reference for any preview UI. |
+| `reference/Sample_Conversation_Export.html` | Design reference for any preview UI. |
 
 If `reference/event_codes.md` disagrees with the export about field names, types, or formats, **the export is correct** 
 Tell me about the conflict rather than picking one silently.

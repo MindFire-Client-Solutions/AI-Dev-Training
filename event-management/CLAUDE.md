@@ -10,6 +10,10 @@ Reads `input/contacts.csv` and `input/agentConversationEvents_nnnnn.csv` where n
 During every run, the system will produces event rows for those contacts, matching the schema of the real event export exactly. 
 Output goes to `output/` and nowhere else.
 
+The two input files are uploaded through the local UI (`npm start`), which runs the
+generator, saves the CSV to `output/`, offers the same file for download, and shows
+the run summary on screen. `input/` is where the files are kept locally.
+
 **Output target:** CSV in the same format as `input/agentConversationEvents_nnnnn.csv`
 
 ## Reference material (read these before writing any code)
@@ -74,6 +78,8 @@ Timing constraints that must hold:
 - `50532` → `50533` gap is sub-second: 0.18–0.67s observed
 - `30500` timestamps are second-precision ending `.000Z`; all `505xx` timestamps
   carry milliseconds. **Do not use one format for both.**
+- Every `event_date` falls between today minus 7 days and now. Source dates are
+  re-timed into that window; gaps inside a conversation are kept exactly.
 
 ### Fingerprint rules
 
@@ -103,7 +109,16 @@ Timing constraints that must hold:
 
 ## Stack and commands
 
-NodeJS for the backend logic, and VueJS/HTML, when creating UI.
+NodeJS for the backend logic, and VueJS/HTML, when creating UI. The current UI is
+plain HTML and vanilla JS, styled on `reference/Zoltar_AI_Dashboard_Intelligence_Demo.html`.
+No npm dependencies.
+
+```
+npm start   # UI on http://127.0.0.1:4310 (PORT to change)
+npm test    # validator + generator tests (node:test, synthetic fixtures only)
+```
+
+Tunable ratios and ranges live in `src/lib/config.js`.
 
 ## Run summary (print this every time)
 

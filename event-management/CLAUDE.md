@@ -8,11 +8,16 @@ without waiting on live campaign traffic.
 
 Reads `input/contacts.csv` and `input/agentConversationEvents_nnnnn.csv` where nnnnn is the account number.
 During every run, the system will produces event rows for those contacts, matching the schema of the real event export exactly. 
-Output goes to `output/` and nowhere else.
+Where the output goes depends on how the UI is run:
 
-The two input files are uploaded through the local UI (`npm start`), which runs the
-generator, saves the CSV to `output/`, offers the same file for download, and shows
-the run summary on screen. `input/` is where the files are kept locally.
+- **Local** (`npm start`): the CSV is saved to `output/` and offered for download.
+- **Hosted** (Cloudflare Pages): the CSV is a browser download only. There is no
+  `output/` folder on the hosted site.
+
+In both cases the generator runs **in the browser**. The input files are chosen in the
+page, processed there, and never uploaded anywhere. The run summary is shown on
+screen (and printed in the terminal when run locally). `input/` is where the files
+are kept locally.
 
 **Output target:** CSV in the same format as `input/agentConversationEvents_nnnnn.csv`
 
@@ -99,7 +104,11 @@ Timing constraints that must hold:
 ## Hard rules
 
 - **Never write to a production endpoint, database, SFTP path, or S3 bucket.**
-  Output to `output/` only. If a task seems to require a live write, stop and ask.
+  Output goes to `output/` (local) or a browser download (hosted), nothing else.
+  If a task seems to require a live write, stop and ask.
+- **The hosted page must never send input or output data off the user's machine.**
+  No upload endpoint, no analytics, no third-party scripts. `_headers` sets
+  `connect-src 'none'`; keep it that way.
 - Never commit anything from `input/` or `output/`, and never commit
   `reference/event_table_sample.csv` — all contain real client contact data.
 - No credentials, account codes, or endpoint URLs in source. Read them from the
@@ -114,11 +123,22 @@ plain HTML and vanilla JS, styled on `reference/Zoltar_AI_Dashboard_Intelligence
 No npm dependencies.
 
 ```
-npm start   # UI on http://127.0.0.1:4310 (PORT to change)
-npm test    # validator + generator tests (node:test, synthetic fixtures only)
+npm start       # UI on http://127.0.0.1:4310 (PORT to change); saves to output/
+npm test        # validator + generator tests (node:test, synthetic fixtures only)
+npm run build   # dist/ for Cloudflare Pages
 ```
 
-Tunable ratios and ranges live in `src/lib/config.js`.
+Tunable ratios and ranges live in `src/lib/config.js`. Everything in `src/lib/` must
+stay browser-safe: no Node built-ins, because the same files are deployed as-is.
+
+## Deployment
+
+Cloudflare Pages, public link (anyone with the URL; `noindex` keeps it out of search).
+
+- Root directory `event-management`, build command `npm run build`, output `dist`.
+- `scripts/build.js` copies `src/ui/index.html` and `src/lib/*.js` and writes
+  `_headers` (CSP, noindex, no framing). No bundler, no dependencies.
+- `dist/` is a build artifact and is not committed.
 
 ## Run summary (print this every time)
 

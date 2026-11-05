@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Demo Event Generator</title>
 <meta name="description" content="Build a demo voice-AI conversation export from a contacts file and a real events file.">
+<meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -218,7 +219,7 @@ tbody tr:hover td{background:var(--surface-2)}
   <form class="ai-card" id="runForm">
     <div class="ai-head">
       <span class="ai-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12"/><path d="m8 7 4-4 4 4"/><path d="M4 21h16"/></svg></span>
-      <div class="t"><b>Upload input files</b><span>Files stay on this machine. The generated CSV is saved to <span class="mono">output/</span> and offered for download.</span></div>
+      <div class="t"><b>Choose input files</b><span>Files are processed in this browser and never uploaded. The generated CSV downloads directly<span id="localNote" hidden>, and the local server also saves a copy to <span class="mono">output/</span></span>.</span></div>
     </div>
     <div class="uploads">
       <label class="drop" id="contactsDrop">
@@ -233,13 +234,13 @@ tbody tr:hover td{background:var(--surface-2)}
       </label>
       <div class="field">
         <span class="lbl">Seed (optional)</span>
-        <input id="seed" inputmode="numeric" placeholder="random" autocomplete="off" aria-label="Seed">
+        <input id="seed" inputmode="numeric" placeholder="random (0–4294967295)" autocomplete="off" aria-label="Seed, optional, whole number from 0 to 4294967295">
       </div>
       <button class="btn pri gen" id="genBtn" type="submit" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m5 12 14 0M13 6l6 6-6 6"/></svg>Generate
       </button>
     </div>
-    <div class="hint">Every event date is placed within the last 7 days, up to now. Use the same seed to reproduce a run.</div>
+    <div class="hint">Every event date is placed within the last 7 days, up to now. Seed is optional: leave it blank for a random run, or enter a whole number from 0 to 4,294,967,295. The same seed repeats which contacts, conversations and source rows are used, but dates move with the time of the run.</div>
   </form>
 
   <div id="banner" hidden></div>
@@ -286,9 +287,17 @@ tbody tr:hover td{background:var(--surface-2)}
   </section>
 </main>
 
-<script>
+<script type="module">
+// The generator runs entirely in this browser. Input files are never uploaded.
+// When served by the local server (npm start), a copy is also saved to output/.
+import { generate, parseSeed, outputFileName } from './lib/generator.js';
+import { formatSummary } from './lib/summary.js';
+
 (function () {
   'use strict';
+
+  const LOCAL = ['127.0.0.1', 'localhost'].includes(location.hostname);
+  let downloadUrl = null;
 
   const files = { contacts: null, events: null };
   const byId = (id) => {
@@ -362,28 +371,49 @@ tbody tr:hover td{background:var(--surface-2)}
     });
   }
 
+  byId('localNote').hidden = !LOCAL;
+
   // ---- run -------------------------------------------------------------------
+  // Local server only: save a copy to output/. Returns the saved path or null.
+  async function saveLocalCopy(fileName, csv, summaryText) {
+    try {
+      const res = await fetch('/api/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName, csv, summaryText }),
+      });
+      const data = await res.json();
+      return res.ok ? data.path : null;
+    } catch (err) {
+      return null;
+    }
+  }
+
   document.addEventListener('submit', async function (e) {
     if (e.target.id !== 'runForm') return;
     e.preventDefault();
     const btn = byId('genBtn');
     btn.disabled = true;
     btn.lastChild.textContent = 'Generating…';
+    await new Promise((r) => setTimeout(r, 0)); // let the button repaint first
     try {
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contactsCsv: files.contacts.text, contactsName: files.contacts.name,
-          eventsCsv: files.events.text, eventsName: files.events.name,
-          seed: byId('seed').value.trim(),
-        }),
+      const seed = parseSeed(byId('seed').value);
+      const result = generate({
+        contactsCsv: files.contacts.text, eventsCsv: files.events.text,
+        eventsFileName: files.events.name, ...(seed === undefined ? {} : { seed }),
       });
-      const data = await res.json();
-      if (data.error) showError(data.error);
-      else render(data);
+      const ok = result.validation.ok;
+      const fileName = ok ? outputFileName(result.acctID, result.seed) : null;
+      const savedTo = ok && LOCAL ? await saveLocalCopy(fileName, result.csv, formatSummary(result.summary)) : null;
+      if (downloadUrl) URL.revokeObjectURL(downloadUrl);
+      downloadUrl = ok ? URL.createObjectURL(new Blob([result.csv], { type: 'text/csv;charset=utf-8' })) : null;
+      render({
+        ok, fileName, savedTo, acctID: result.acctID, summary: result.summary,
+        validation: result.validation, notes: result.notes, window: result.window,
+        header: result.header, preview: result.rows.slice(0, 50),
+      });
     } catch (err) {
-      showError(`Could not reach the generator server: ${err.message}`);
+      showError(err.message);
     } finally {
       btn.disabled = false;
       btn.lastChild.textContent = 'Generate';
@@ -402,17 +432,19 @@ tbody tr:hover td{background:var(--surface-2)}
     const s = d.summary;
     const banner = byId('banner');
     if (d.ok) {
-      fill(banner, h('b', null, 'Saved'), h('span', { class: 'mono' }, `output/${d.fileName}`));
+      fill(banner, h('b', null, d.savedTo ? 'Saved' : 'Ready'),
+        h('span', { class: 'mono' }, d.savedTo || d.fileName),
+        h('span', null, d.savedTo ? '· also available from Download CSV' : '· use Download CSV to save it'));
       banner.className = 'banner good';
     } else {
-      fill(banner, h('b', null, 'Validation failed.'), h('span', null, 'Nothing was written to output/. See the failed checks below.'));
+      fill(banner, h('b', null, 'Validation failed.'), h('span', null, 'No file was produced. See the failed checks below.'));
       banner.className = 'banner bad';
     }
     banner.hidden = false;
 
     const dl = byId('downloadBtn');
     dl.hidden = !d.ok;
-    if (d.ok) dl.href = `/api/download?file=${encodeURIComponent(d.fileName)}`;
+    if (d.ok) { dl.href = downloadUrl; dl.download = d.fileName; }
 
     // KPIs
     const kpi = (label, val, meta) => h('div', { class: 'card kpi' }, h('div', { class: 'eyebrow' }, label), h('div', { class: 'val' }, val), h('div', { class: 'meta' }, meta));
@@ -459,7 +491,7 @@ tbody tr:hover td{background:var(--surface-2)}
       row('First event', when(s.dateRange.first)),
       row('Last event', when(s.dateRange.last)),
       row('Window', `${when(d.window.start)} → ${when(d.window.end)}`),
-      row('Output', d.ok ? `output/${d.fileName}` : 'not written'));
+      row('Output', d.ok ? (d.savedTo || `${d.fileName} (download)`) : 'not produced'));
 
     // validation
     const failedCount = d.validation.checks.filter((c) => !c.ok).length;

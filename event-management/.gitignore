@@ -8,6 +8,9 @@ input/*
 output/*
 !output/.gitkeep
 
+# Cloudflare Pages build output (npm run build)
+dist/
+
 # The real export contains client contact data (names, emails, PURLs).
 # Never commit it.
 reference/*.csv

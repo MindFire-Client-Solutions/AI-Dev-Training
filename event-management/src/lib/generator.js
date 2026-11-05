@@ -49,6 +49,25 @@ export function randomSeed() {
   return globalThis.crypto.getRandomValues(new Uint32Array(1))[0];
 }
 
+// '' / null / undefined -> undefined (random). Otherwise a whole number 0..2^32-1.
+export function parseSeed(v) {
+  if (v === undefined || v === null || String(v).trim() === '') return undefined;
+  const n = Number(String(v).trim());
+  if (!Number.isInteger(n) || n < 0 || n > 0xffffffff) {
+    throw new Error('Seed must be a whole number from 0 to 4294967295');
+  }
+  return n;
+}
+
+// agentConversationEvents_<acct>_generated_<YYYYMMDD-HHMMSS>_seed<seed>.csv (local time)
+export function outputFileName(acctID, seed, date = new Date()) {
+  const p = (n) => String(n).padStart(2, '0');
+  const stamp = `${date.getFullYear()}${p(date.getMonth() + 1)}${p(date.getDate())}-${p(date.getHours())}${p(date.getMinutes())}${p(date.getSeconds())}`;
+  return `agentConversationEvents_${acctID}_generated_${stamp}_seed${seed}.csv`;
+}
+
+export const OUTPUT_FILE_PATTERN = /^agentConversationEvents_\d+_generated_\d{8}-\d{6}_seed\d+\.csv$/;
+
 // --- source analysis --------------------------------------------------------
 
 // Split the source events into per-contact "personas": their visits, their

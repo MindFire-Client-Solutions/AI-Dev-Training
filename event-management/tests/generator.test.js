@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { generate } from '../src/lib/generator.js';
+import { OUTPUT_FILE_PATTERN, generate, outputFileName, parseSeed } from '../src/lib/generator.js';
 import { parseCsv, writeCsv } from '../src/lib/csv.js';
 import { CONFIG } from '../src/lib/config.js';
 import { CONTACTS_HEADER, HEADER, HOST, contactsCsv, sourceEventsCsv } from './fixtures.js';
@@ -86,4 +86,19 @@ test('events file name must agree with its acctID', () => {
 test('rejects an events file without the required columns', () => {
   const bad = sourceEventsCsv().replace('event_path', 'path');
   assert.throws(() => run({ eventsCsv: bad }), /missing columns: event_path/);
+});
+
+test('seed: blank means random, otherwise a whole number 0-4294967295', () => {
+  assert.equal(parseSeed(''), undefined);
+  assert.equal(parseSeed('  '), undefined);
+  assert.equal(parseSeed(' 42 '), 42);
+  assert.equal(parseSeed('4294967295'), 4294967295);
+  for (const bad of ['-1', '4294967296', '1.5', 'abc']) assert.throws(() => parseSeed(bad), /whole number/);
+});
+
+test('output file name follows the agreed pattern', () => {
+  const name = outputFileName('38525', 999, new Date(2026, 10, 4, 9, 5, 7));
+  assert.equal(name, 'agentConversationEvents_38525_generated_20261104-090507_seed999.csv');
+  assert.match(name, OUTPUT_FILE_PATTERN);
+  assert.doesNotMatch('../contacts.csv', OUTPUT_FILE_PATTERN);
 });

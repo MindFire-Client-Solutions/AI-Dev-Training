@@ -16,7 +16,8 @@ exactly. `CLAUDE.md` is the authority. Where it disagrees with the sample export
 
 | Topic | Decision |
 |---|---|
-| Header | Output header = events file header exactly (28 columns for acct 38525). No 32-column schema. |
+| Header | Output header = events file header, same columns and order (28 for acct 38525), every name lowercase. No 32-column schema. |
+| Column order | Either input file may have its columns in any order. Columns are matched by name; the output keeps the events file's order. |
 | Funnel | 20–25% of visiting contacts (30500) request (50531). At least 95% of requests complete (50532). Every 50532 has exactly one 50533. |
 | Contact selection | 50–75% of contacts in `contacts.csv` per run. |
 | Event details | Copied from real source rows only, never invented. A contact never repeats the same conversation. |
@@ -27,7 +28,7 @@ exactly. `CLAUDE.md` is the authority. Where it disagrees with the sample export
 | Rate checks | Hard rules fail the run. Funnel rates are warnings, because small inputs can't hit them exactly. |
 | UI stack | Plain HTML and vanilla JS, styled on `reference/Zoltar_AI_Dashboard_Intelligence_Demo.html`. No npm dependencies. |
 | Where it runs | In the browser. Input files are never uploaded. |
-| Output | Local (`npm start`): saved to `output/` and offered for download. Hosted (Cloudflare Pages): browser download only. |
+| Output | Browser download only (Download CSV), locally and hosted. Nothing is written to `output/`. |
 | Hosting | Cloudflare Pages, public link (anyone with the URL), `noindex`. |
 | Seed | Optional, 0–4294967295. The same seed repeats contact, conversation and row choices. Dates move with the time of the run. |
 
@@ -42,7 +43,7 @@ exactly. `CLAUDE.md` is the authority. Where it disagrees with the sample export
 | `src/lib/generator.js` | Seeded generator: `parseSeed`, `outputFileName`. |
 | `src/lib/summary.js` | Run summary (CLAUDE.md). |
 | `src/ui/index.html` | Upload, generate, summary, validation, preview, download. |
-| `src/server.js` | Local only (127.0.0.1): serves the page and modules; `/api/save` writes to `output/`. |
+| `src/server.js` | Local only (127.0.0.1): serves the page and modules. Nothing else. |
 | `scripts/build.js` | Builds `dist/` (page, `lib/`, `_headers`) for Cloudflare Pages. |
 | `tests/` | `node:test` suites on synthetic fixtures only. |
 
@@ -55,7 +56,8 @@ Everything in `src/lib/` must stay browser-safe (no Node built-ins).
    `acctID`. Drop any source row whose code is not 30500/50531/50532/50533.
 2. Split the source into personas, one per source contact: their visits, their
    complete conversations (50531 → 50532 → 50533, with the visit before each), and
-   their abandoned 50531s.
+   their abandoned 50531s. A conversation whose 50532 has no `audio_time` (blank or 0) is
+   skipped: its 50532 and 50533 are not used, and its 50531 counts as abandoned.
 3. Select 50–75% of contacts. 20–25% of those become requesters; at least one when
    2 or more contacts are selected.
 4. Each requester gets 1–3 conversations drawn without replacement from one persona.
@@ -83,8 +85,8 @@ Each of these fails the run:
 10. Payloads are only on their own codes.
 11. Transcript and recording share a UUID.
 12. `tokens_used` totals equal the sum of their detail fields.
-13. `data` is valid JSON, and `conversation_summary` alternates starting with assistant.
-14. Pairing: every 50532 follows a 50531 with a gap of `audio_time` plus 0–30 s, and has exactly one 50533 within 1 s.
+13. `data` is valid JSON, and `conversation_summary` starts with assistant and uses only assistant/user roles (the same speaker twice in a row is allowed).
+14. Pairing (counts only, per contact): as many 50533 as 50532, and at least as many 50531 as 50532. Timing and order are not checked, because events are created asynchronously.
 
 Warnings: request rate (20–25%), completion rate (at least 95%), and every requester also has a visit.
 
@@ -100,7 +102,6 @@ Warnings: request rate (20–25%), completion rate (at least 95%), and every req
 - `npm test`: 30 tests covering every rule, 50 seeds, determinism, selection
   share, funnel rates at 400 contacts, PURL rewrite, seed parsing and file naming.
 - Browser end-to-end with the account 38525 files:
-  - **Local:** download is byte-identical to the copy in `output/`.
   - **Hosted simulation:** `dist/` served with the Pages headers. All rules pass, there are no CSP errors, and no data requests leave the page.
 - Checked at desktop width, phone width and in dark mode.
 

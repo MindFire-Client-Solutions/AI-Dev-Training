@@ -29,9 +29,4 @@ export const CONFIG = {
   // All event_date values fall in [now - windowDays, now].
   windowDays: 7,
 
-  // Validator tolerances, from the observed source export.
-  // 50531 -> 50532 gap is audio_time plus connect/teardown time.
-  requestToCompleteSlackSeconds: { min: 0, max: 30 },
-  // 50532 -> 50533 gap.
-  completeToEvaluateMaxSeconds: 1,
 };

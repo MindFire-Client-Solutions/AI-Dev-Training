@@ -5,7 +5,9 @@ import { ACCT, CONTACTS, CONTACTS_HEADER, HEADER, validOutput } from './fixtures
 
 const NOW = Date.parse('2026-11-04T12:00:00.000Z');
 
-function run(rows, header = HEADER) {
+const OUT_HEADER = HEADER.map((c) => c.toLowerCase());
+
+function run(rows, header = OUT_HEADER) {
   return validate({
     header, rows, expectedHeader: HEADER, contactsHeader: CONTACTS_HEADER,
     contacts: CONTACTS, acctID: ACCT, now: NOW,
@@ -26,12 +28,13 @@ test('a valid output passes every hard rule', () => {
   assert.equal(res.ok, true);
 });
 
-test('header must match exactly: same columns, same order', () => {
-  const swapped = [...HEADER];
+test('header must match: same columns, same order, all lowercase', () => {
+  const swapped = [...OUT_HEADER];
   [swapped[1], swapped[2]] = [swapped[2], swapped[1]];
   assert.deepEqual(failed(run(validOutput(NOW), swapped)), ['header']);
-  assert.deepEqual(failed(run(validOutput(NOW), HEADER.slice(0, -1))), ['header']);
-  assert.deepEqual(failed(run(validOutput(NOW), [...HEADER, 'event_id'])), ['header']);
+  assert.deepEqual(failed(run(validOutput(NOW), OUT_HEADER.slice(0, -1))), ['header']);
+  assert.deepEqual(failed(run(validOutput(NOW), [...OUT_HEADER, 'event_id'])), ['header']);
+  assert.deepEqual(failed(run(validOutput(NOW), HEADER)), ['header'], 'original capitals are rejected');
 });
 
 test('only the four event codes are allowed', () => {
@@ -93,24 +96,44 @@ test('tokens_used totals must add up', () => {
   assert.deepEqual(failed(run(rows)), ['tokens']);
 });
 
-test('conversation_summary must alternate, starting with assistant', () => {
-  const rows = withRow('50533', (r) => {
-    const d = JSON.parse(r.data); d.conversation_summary[0].role = 'user'; r.data = JSON.stringify(d);
-  });
-  assert.deepEqual(failed(run(rows)), ['dataPayload']);
+const withTurns = (change) => withRow('50533', (r) => {
+  const d = JSON.parse(r.data); change(d.conversation_summary); r.data = JSON.stringify(d);
 });
 
-test('every 50532 needs a 50531 before it and exactly one 50533 after it', () => {
+test('conversation_summary must start with assistant and use only assistant/user', () => {
+  assert.deepEqual(failed(run(withTurns((s) => { s[0].role = 'user'; }))), ['dataPayload']);
+  assert.deepEqual(failed(run(withTurns((s) => { s[1].role = 'agent'; }))), ['dataPayload']);
+});
+
+test('conversation_summary may have the same speaker twice in a row', () => {
+  assert.deepEqual(failed(run(withTurns((s) => { s.push({ ...s[s.length - 1] }); }))), []);
+});
+
+test('per contact, every 50532 has a 50531 and exactly one 50533', () => {
   const noEval = validOutput(NOW).filter((r) => r.event_code !== '50533');
   assert.deepEqual(failed(run(noEval)), ['pairing']);
   const noReq = validOutput(NOW).filter((r) => r.event_code !== '50531');
   assert.deepEqual(failed(run(noReq)), ['pairing']);
-  const slowEval = withRow('50533', (r) => { r.event_date = new Date(Date.parse(r.event_date) + 5000).toISOString(); });
-  assert.deepEqual(failed(run(slowEval)), ['pairing']);
+  const rows = validOutput(NOW);
+  const extraEval = rows.find((r) => r.event_code === '50533');
+  assert.deepEqual(failed(run([...rows, { ...extraEval }])), ['pairing']);
 });
 
-test('50531 -> 50532 gap must track audio_time', () => {
-  assert.deepEqual(failed(run(withRow('50532', (r) => { r.audio_time = '200'; }))), ['pairing']);
+test('audio_time must be a positive number of seconds', () => {
+  assert.deepEqual(failed(run(withRow('50532', (r) => { r.audio_time = '0'; }))), ['payloadPlacement']);
+  assert.deepEqual(failed(run(withRow('50532', (r) => { r.audio_time = ''; }))), ['payloadPlacement']);
+  assert.deepEqual(failed(run(withRow('50532', (r) => { r.audio_time = 'abc'; }))), ['payloadPlacement']);
+});
+
+test('timing and order inside a conversation are not checked (events are asynchronous)', () => {
+  assert.deepEqual(failed(run(withRow('50532', (r) => { r.audio_time = '200'; }))), []);
+  const slowEval = withRow('50533', (r) => { r.event_date = new Date(Date.parse(r.event_date) + 5000).toISOString(); });
+  assert.deepEqual(failed(run(slowEval)), []);
+  const evalFirst = withRow('50533', (r, all) => {
+    const req = all.find((x) => x.event_code === '50531');
+    r.event_date = new Date(Date.parse(req.event_date) - 1000).toISOString();
+  });
+  assert.deepEqual(failed(run(evalFirst)), []);
 });
 
 test('an abandoned 50531 is valid, but drags the completion warning', () => {

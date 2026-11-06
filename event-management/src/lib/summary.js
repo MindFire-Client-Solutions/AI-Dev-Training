@@ -53,20 +53,3 @@ export function summarize(rows, { contactsTotal, seed }) {
     seed,
   };
 }
-
-const pct = (v) => (v == null ? 'n/a' : `${(v * 100).toFixed(1)}%`);
-const sec = (v) => (v == null ? 'n/a' : `${v.toFixed(1)}s`);
-
-export function formatSummary(s) {
-  return [
-    `Rows:              ${s.rowCount}`,
-    `By event_code:     ${Object.entries(s.byCode).map(([c, n]) => `${c}=${n}`).join('  ')}`,
-    `Contacts:          ${s.contactsTouched} touched, ${s.contactsSkipped} skipped (of ${s.contactsTotal})`,
-    `Funnel:            requested ${s.funnel.requested} / completed ${s.funnel.completed} / evaluated ${s.funnel.evaluated}  (abandoned ${s.funnel.abandoned})`,
-    `Request rate:      ${pct(s.rates.requestRate)} of visiting contacts (${s.funnel.requesters}/${s.funnel.visitors})`,
-    `Completion rate:   ${pct(s.rates.completionRate)}`,
-    `audio_time:        min ${sec(s.audioTime.min)}  median ${sec(s.audioTime.median)}  max ${sec(s.audioTime.max)}`,
-    `Date range:        ${s.dateRange.first ?? 'n/a'} -> ${s.dateRange.last ?? 'n/a'}`,
-    `Seed:              ${s.seed}`,
-  ].join('\n');
-}

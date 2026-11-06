@@ -8,18 +8,29 @@ export const REQUIRED_EVENT_COLUMNS = [
   'audio_transcript', 'audio_recording', 'tokens_used', 'audio_time', 'data', 'acctID',
 ];
 
+// Event-block columns, by name. Every other column except acctID is the contact block.
+export const EVENT_BLOCK_COLUMNS = REQUIRED_EVENT_COLUMNS.filter((c) => c !== '_id' && c !== 'acctID');
+
 export const FINGERPRINT_COLUMNS = ['Browser', 'Device', 'OS', 'Platform'];
 export const COMPLETION_PAYLOAD_COLUMNS = ['audio_transcript', 'audio_recording', 'tokens_used', 'audio_time'];
 
 export function assertEventHeader(header) {
   const missing = REQUIRED_EVENT_COLUMNS.filter((c) => !header.includes(c));
   if (missing.length) throw new Error(`Events file is missing columns: ${missing.join(', ')}`);
-  if (header[header.length - 1] !== 'acctID') throw new Error('Events file: acctID must be the last column');
+  const lower = header.map((c) => c.toLowerCase());
+  const clash = header.filter((c, i) => lower.indexOf(lower[i]) !== i);
+  if (clash.length) throw new Error(`Events file has columns that differ only by case: ${clash.join(', ')}`);
 }
 
-// Contact block = every column before event_code (PURL, email, names, address, _id ...).
+// Output header: the events file header, same columns and order, all lowercase (CLAUDE.md).
+export function outputHeader(eventHeader) {
+  return eventHeader.map((c) => c.toLowerCase());
+}
+
+// Contact block = every column that is not an event column or acctID (PURL, email,
+// names, address, _id ...). Chosen by name, so column order in either file does not matter.
 export function contactBlockColumns(header) {
-  return header.slice(0, header.indexOf('event_code'));
+  return header.filter((c) => c !== 'acctID' && !EVENT_BLOCK_COLUMNS.includes(c));
 }
 
 // Map each contact-block column to the matching contacts.csv column, case-insensitively

@@ -61,8 +61,8 @@ Observed in the acct 38525 example: 36 of 59 rows are `30500`; 9 requested,
 
 | Transition | Observed | Use |
 |---|---|---|
-| `50531` → `50532` | 17s – 5m 0s | Must approximately equal `audio_time` (it is the call duration) |
-| `50532` → `50533` | 0.18s – 0.67s | Sub-second. Always same-second or next-second. |
+| `50531` → `50532` | 17s – 5m 0s | Kept from the source. Not checked: events are asynchronous and need not match `audio_time`. |
+| `50532` → `50533` | 0.18s – 0.67s | Kept from the source. Not checked. |
 | visit → `50531` | ~1–2 min | When a visit leads to a conversation at all |
 
 `audio_time` observed range: **10.5 – 278.7 seconds**, median ~57s. Skew the
@@ -79,8 +79,9 @@ Getting this wrong is the fastest way to make generated rows obviously synthetic
 
 ## 3. Schema
 
-The output header must match the header of `input/agentConversationEvents_nnnnn.csv`
-exactly — same columns, same order. In the acct 38525 example:
+The output header must match the header of `input/agentConversationEvents_nnnnn.csv`:
+same columns, same order, with every name lowercased in the output. In the acct 38525
+example, the events file header is:
 
 ```
 PURL, email, firstname, isseed, lastname, address1, address2, city, phone,
@@ -135,7 +136,7 @@ IPs on these rows; per `CLAUDE.md`, output blanks them.)
 | `audio_transcript` | `50532` | `https://mfdavinci.s3.us-west-1.amazonaws.com/file/voiceai/{uuid4}.txt` |
 | `audio_recording` | `50532` | Same path, `.mp4` (5 of 7) or `.wav` (2 of 7) |
 | `tokens_used` | `50532` | JSON, see below |
-| `audio_time` | `50532` | Float seconds |
+| `audio_time` | `50532` | Float seconds. Blank or 0 occurs in real exports; the generator skips that conversation's 50532 and 50533. |
 | `data` | `50533` only, and **only ~43% of them** | JSON, see below |
 
 Everything else is empty string, not null.
@@ -196,7 +197,8 @@ Internal consistency to preserve when generating:
   frequently partial or wrong — the agent heard them spoken. Reproduce that
   messiness; do not clean it up.
 - `requestCallback` is `"Y"` or `"N"`.
-- `conversation_summary` alternates `assistant` / `user`, starts with `assistant`,
+- `conversation_summary` starts with `assistant` and mostly alternates `assistant` / `user`
+  (the same speaker twice in a row occurs and is valid),
   and is written in third-person past tense ("The assistant introduced itself as...",
   "The user asked where the company is located."). Observed length: 3–11 turns,
   scaling with `audio_time`.

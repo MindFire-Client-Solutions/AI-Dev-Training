@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { OUTPUT_FILE_PATTERN, generate, outputFileName, parseSeed } from '../src/lib/generator.js';
+import { generate, outputFileName, parseSeed } from '../src/lib/generator.js';
 import { parseCsv, writeCsv } from '../src/lib/csv.js';
 import { CONFIG } from '../src/lib/config.js';
 import { CONTACTS_HEADER, HEADER, HOST, contactsCsv, sourceEventsCsv } from './fixtures.js';
@@ -32,9 +32,17 @@ test('same seed and time give the same file', () => {
   assert.notEqual(run({ seed: 123 }).csv, run({ seed: 124 }).csv);
 });
 
-test('header is the events file header, unchanged', () => {
-  const { header } = parseCsv(run().csv);
-  assert.deepEqual(header, HEADER);
+test('header is the events file header, same order, all lowercase', () => {
+  const { header, records } = parseCsv(run().csv);
+  assert.deepEqual(header, HEADER.map((c) => c.toLowerCase()));
+  assert.ok(header.every((c) => c === c.toLowerCase()));
+  assert.ok(records.length && records.every((r) => r.acctid && r.purl !== undefined));
+});
+
+test('rejects an events file with two columns that differ only by case', () => {
+  const bad = sourceEventsCsv().replace('isseed', 'EMAIL');
+  assert.notEqual(bad, sourceEventsCsv());
+  assert.throws(() => run({ eventsCsv: bad }), /differ only by case/);
 });
 
 test('never emits codes outside the four', () => {
@@ -97,8 +105,37 @@ test('seed: blank means random, otherwise a whole number 0-4294967295', () => {
 });
 
 test('output file name follows the agreed pattern', () => {
-  const name = outputFileName('38525', 999, new Date(2026, 10, 4, 9, 5, 7));
-  assert.equal(name, 'agentConversationEvents_38525_generated_20261104-090507_seed999.csv');
-  assert.match(name, OUTPUT_FILE_PATTERN);
-  assert.doesNotMatch('../contacts.csv', OUTPUT_FILE_PATTERN);
+  const name = outputFileName('38525', new Date(2026, 10, 4, 9, 5, 7));
+  assert.equal(name, 'agentConversationEvents_38525_generated_20261104-090507.csv');
+});
+
+test('a source conversation without audio_time is skipped, not a failure', () => {
+  for (const missing of ['', '0']) {
+    const eventsCsv = sourceEventsCsv().replace(',120.25,', `,${missing},`);
+    assert.notEqual(eventsCsv, sourceEventsCsv());
+    for (let seed = 1; seed <= 30; seed++) {
+      const res = run({ seed, eventsCsv, contactsCsv: manyContactsCsv(100) });
+      assert.equal(res.validation.ok, true, `seed ${seed}`);
+      assert.ok(res.rows.every((r) => r.event_code !== '50532' || Number(r.audio_time) > 0));
+      assert.ok(res.notes.some((n) => n.includes('Skipped 1 source conversation')));
+    }
+  }
+});
+
+test('column order in either input file does not matter', () => {
+  const reorder = (csv, seed) => {
+    const { header, records } = parseCsv(csv);
+    const shuffled = [...header].sort((a, b) => ((a.length * 31 + seed) % 7) - ((b.length * 31 + seed) % 7) || b.localeCompare(a));
+    return { header: shuffled, csv: writeCsv(shuffled, records) };
+  };
+  const base = run({ seed: 11 });
+  for (let k = 1; k <= 5; k++) {
+    const events = reorder(sourceEventsCsv(), k);
+    const contacts = reorder(contactsCsv(), k + 3);
+    assert.notDeepEqual(events.header, HEADER);
+    const res = run({ seed: 11, eventsCsv: events.csv, contactsCsv: contacts.csv });
+    assert.equal(res.validation.ok, true, `order ${k}`);
+    assert.deepEqual(res.header, events.header.map((c) => c.toLowerCase()), 'output follows the events file column order');
+    assert.deepEqual(res.rows, base.rows, 'same rows, whatever the column order');
+  }
 });

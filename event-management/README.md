@@ -44,9 +44,7 @@ The page shows the run summary (rows, events per code, contacts touched and skip
 the funnel, `audio_time`, date range, seed), every validation rule, the funnel
 targets, and a preview of the first 50 rows.
 
-- **Download CSV** saves the file from the browser.
-- When run locally, a copy is also saved to `output/` and the summary is printed
-  in the terminal.
+- **Download CSV** saves the file from the browser. It is the only output.
 - If any validation rule fails, no file is produced; the failing rows are listed.
 
 Input files are processed in the browser and never uploaded.
@@ -74,7 +72,7 @@ Creates `dist/` (the page, its modules, and `_headers`). Then either:
 - **CLI:** `npx wrangler pages deploy dist` (after `wrangler login`).
 
 The hosted page cannot send data anywhere (`connect-src 'none'`) and is kept out of
-search engines (`noindex`). On the hosted page the CSV is a browser download only.
+search engines (`noindex`). As locally, the CSV is a browser download only.
 
 ## Tuning
 

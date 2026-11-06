@@ -4,7 +4,7 @@
 
 import { CONFIG, EVENT_CODES } from './config.js';
 import {
-  COMPLETION_PAYLOAD_COLUMNS, FINGERPRINT_COLUMNS, contactBlockFor, contactColumnMap,
+  COMPLETION_PAYLOAD_COLUMNS, FINGERPRINT_COLUMNS, contactBlockFor, contactColumnMap, outputHeader,
 } from './schema.js';
 
 const SEC_PRECISION = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.000Z$/;
@@ -13,7 +13,7 @@ const UUID = /\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.
 
 // Every rule the validator knows, in display order.
 export const RULES = {
-  header: 'Header matches the events file exactly (same columns, same order)',
+  header: 'Header matches the events file (same columns, same order), all lowercase',
   codes: 'Only event codes 30500, 50531, 50532, 50533',
   appCode: 'app_code is the first three digits of event_code',
   contact: 'Every row belongs to a contact in contacts.csv, contact block copied verbatim',
@@ -25,8 +25,8 @@ export const RULES = {
   payloadPlacement: 'Transcript, recording, tokens, audio_time only on 50532; data only on 50533',
   audioUuid: 'Transcript and recording share one UUID',
   tokens: 'tokens_used totals equal the sum of their detail fields',
-  dataPayload: 'data is valid JSON; conversation_summary alternates, starting with assistant',
-  pairing: 'Every 50532 follows a 50531 (gap ~ audio_time) and has exactly one 50533 within 1s',
+  dataPayload: 'data is valid JSON; conversation_summary starts with assistant, roles are assistant/user',
+  pairing: 'Per contact: as many 50533 as 50532, and at least as many 50531 as 50532',
 };
 
 export const WARNINGS = {
@@ -46,9 +46,11 @@ export function validate({ header, rows, expectedHeader, contactsHeader, contact
   };
 
   // --- header ---------------------------------------------------------------
-  if (header.length !== expectedHeader.length || header.some((h, i) => h !== expectedHeader[i])) {
-    const diff = expectedHeader.map((h, i) => (header[i] === h ? null : `col ${i + 1}: expected "${h}", got "${header[i] ?? '(none)'}"`)).filter(Boolean);
-    if (header.length > expectedHeader.length) diff.push(`${header.length - expectedHeader.length} extra column(s)`);
+  // `header` is the output header line; `expectedHeader` is the events file header.
+  const wantHeader = outputHeader(expectedHeader);
+  if (header.length !== wantHeader.length || header.some((h, i) => h !== wantHeader[i])) {
+    const diff = wantHeader.map((h, i) => (header[i] === h ? null : `col ${i + 1}: expected "${h}", got "${header[i] ?? '(none)'}"`)).filter(Boolean);
+    if (header.length > wantHeader.length) diff.push(`${header.length - wantHeader.length} extra column(s)`);
     for (const d of diff) fail('header', null, d);
   }
 
@@ -96,6 +98,7 @@ export function validate({ header, rows, expectedHeader, contactsHeader, contact
       const a = UUID.exec(r.audio_transcript)?.[1];
       const b = UUID.exec(r.audio_recording)?.[1];
       if (!a || a !== b) fail('audioUuid', i, `transcript ${a ?? '(no uuid)'} vs recording ${b ?? '(no uuid)'}`);
+      // The generator skips source conversations without audio_time, so output never has one.
       if (!(Number(r.audio_time) > 0)) fail('payloadPlacement', i, `audio_time "${r.audio_time}" is not a positive number`);
       checkTokens(r.tokens_used, (m) => fail('tokens', i, m));
     }
@@ -103,40 +106,17 @@ export function validate({ header, rows, expectedHeader, contactsHeader, contact
   });
 
   // --- journey pairing, per contact ----------------------------------------
-  const byContact = new Map();
+  // Events are created asynchronously, so timing and order are not checked:
+  // only that each contact's counts make a valid funnel.
+  const counts = new Map();
   rows.forEach((r, i) => {
-    if (!byContact.has(r._id)) byContact.set(r._id, []);
-    byContact.get(r._id).push({ r, i, t: Date.parse(r.event_date) });
+    if (!counts.has(r._id)) counts.set(r._id, { i, 50531: 0, 50532: 0, 50533: 0 });
+    const c = counts.get(r._id);
+    if (r.event_code in c) c[r.event_code] += 1;
   });
-  const slack = config.requestToCompleteSlackSeconds;
-  for (const events of byContact.values()) {
-    events.sort((a, b) => a.t - b.t);
-    const openRequests = [];
-    let openCompletion = null;
-    for (const e of events) {
-      const code = e.r.event_code;
-      if (code === '50531') openRequests.push(e);
-      else if (code === '50532') {
-        if (openCompletion) fail('pairing', openCompletion.i, '50532 has no 50533');
-        const req = openRequests.pop();
-        if (!req) fail('pairing', e.i, '50532 has no preceding 50531');
-        else {
-          const gap = (e.t - req.t) / 1000 - Number(e.r.audio_time);
-          if (gap < slack.min || gap > slack.max) {
-            fail('pairing', e.i, `50531->50532 gap exceeds audio_time by ${gap.toFixed(1)}s (allowed ${slack.min}-${slack.max}s)`);
-          }
-        }
-        openCompletion = e;
-      } else if (code === '50533') {
-        if (!openCompletion) fail('pairing', e.i, '50533 has no preceding 50532');
-        else {
-          const gap = (e.t - openCompletion.t) / 1000;
-          if (gap < 0 || gap > config.completeToEvaluateMaxSeconds) fail('pairing', e.i, `50532->50533 gap ${gap.toFixed(3)}s`);
-        }
-        openCompletion = null;
-      }
-    }
-    if (openCompletion) fail('pairing', openCompletion.i, '50532 has no 50533');
+  for (const c of counts.values()) {
+    if (c[50533] !== c[50532]) fail('pairing', c.i, `contact has ${c[50532]} 50532 but ${c[50533]} 50533`);
+    if (c[50531] < c[50532]) fail('pairing', c.i, `contact has ${c[50532]} 50532 but only ${c[50531]} 50531`);
   }
 
   // --- funnel rates (warnings) ---------------------------------------------
@@ -184,8 +164,9 @@ function checkData(json, fail) {
   try { d = JSON.parse(json); } catch { fail('data is not valid JSON'); return; }
   const s = d.conversation_summary;
   if (!Array.isArray(s)) return;
+  // Turns mostly alternate, but real exports have the same speaker twice in a row.
+  if (s.length && s[0].role !== 'assistant') fail(`conversation_summary[0] role "${s[0].role}", expected "assistant"`);
   s.forEach((turn, k) => {
-    const expected = k % 2 === 0 ? 'assistant' : 'user';
-    if (turn.role !== expected) fail(`conversation_summary[${k}] role "${turn.role}", expected "${expected}"`);
+    if (turn.role !== 'assistant' && turn.role !== 'user') fail(`conversation_summary[${k}] role "${turn.role}", expected "assistant" or "user"`);
   });
 }

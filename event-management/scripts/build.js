@@ -28,8 +28,9 @@ const HEADERS = `/*
 await rm(DIST, { recursive: true, force: true });
 await mkdir(join(DIST, 'lib'), { recursive: true });
 await copyFile(join(ROOT, 'src', 'ui', 'index.html'), join(DIST, 'index.html'));
+await copyFile(join(ROOT, 'src', 'ui', 'favicon.jpg'), join(DIST, 'favicon.jpg'));
 const modules = (await readdir(LIB)).filter((f) => f.endsWith('.js'));
 for (const f of modules) await copyFile(join(LIB, f), join(DIST, 'lib', f));
 await writeFile(join(DIST, '_headers'), HEADERS, 'utf8');
 
-process.stdout.write(`Built dist/: index.html, _headers, lib/${modules.join(', lib/')}\n`);
+process.stdout.write(`Built dist/: index.html, favicon.jpg, _headers, lib/${modules.join(', lib/')}\n`);

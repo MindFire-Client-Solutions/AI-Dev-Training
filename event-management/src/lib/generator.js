@@ -9,7 +9,7 @@ import { CONFIG, EVENT_CODES } from './config.js';
 import { parseCsv, writeCsv } from './csv.js';
 import {
   FINGERPRINT_COLUMNS, accountFromFileName, assertContactsHeader, assertEventHeader,
-  contactBlockFor, contactColumnMap,
+  contactBlockFor, contactColumnMap, outputHeader,
 } from './schema.js';
 import { summarize } from './summary.js';
 import { validate } from './validator.js';
@@ -59,20 +59,23 @@ export function parseSeed(v) {
   return n;
 }
 
-// agentConversationEvents_<acct>_generated_<YYYYMMDD-HHMMSS>_seed<seed>.csv (local time)
-export function outputFileName(acctID, seed, date = new Date()) {
+// agentConversationEvents_<acct>_generated_<YYYYMMDD-HHMMSS>.csv (local time)
+export function outputFileName(acctID, date = new Date()) {
   const p = (n) => String(n).padStart(2, '0');
   const stamp = `${date.getFullYear()}${p(date.getMonth() + 1)}${p(date.getDate())}-${p(date.getHours())}${p(date.getMinutes())}${p(date.getSeconds())}`;
-  return `agentConversationEvents_${acctID}_generated_${stamp}_seed${seed}.csv`;
+  return `agentConversationEvents_${acctID}_generated_${stamp}.csv`;
 }
-
-export const OUTPUT_FILE_PATTERN = /^agentConversationEvents_\d+_generated_\d{8}-\d{6}_seed\d+\.csv$/;
 
 // --- source analysis --------------------------------------------------------
 
 // Split the source events into per-contact "personas": their visits, their
 // complete conversations (50531 -> 50532 -> 50533) and their abandoned requests.
+// A conversation whose 50532 has no audio_time (blank, 0 or not a number) is
+// skipped: its 50532 and 50533 are dropped and its 50531 counts as abandoned.
+const hasAudioTime = (row) => Number(row.audio_time) > 0;
+
 function buildPersonas(records) {
+  let skippedNoAudio = 0;
   const byId = new Map();
   for (const r of records) {
     if (!byId.has(r._id)) byId.set(r._id, []);
@@ -93,6 +96,12 @@ function buildPersonas(records) {
         orphans.push(...pendingRequests.splice(0));
         open = req ? { req, comp: r } : null;
       } else if (r.event_code === '50533' && open) {
+        if (!hasAudioTime(open.comp)) {
+          skippedNoAudio += 1;
+          orphans.push(open.req);
+          open = null;
+          continue;
+        }
         const t = (x) => Date.parse(x.event_date);
         sessions.push({
           req: open.req, comp: open.comp, evalRow: r,
@@ -107,7 +116,7 @@ function buildPersonas(records) {
     const leadVisitFor = (req) => [...visits].reverse().find((v) => Date.parse(v.event_date) <= Date.parse(req.event_date)) ?? null;
     personas.push({ id, visits, sessions, orphans: orphans.map((req) => ({ req, leadVisit: leadVisitFor(req) })) });
   }
-  return personas;
+  return { personas, skippedNoAudio };
 }
 
 // --- generation -------------------------------------------------------------
@@ -137,7 +146,8 @@ export function generate({
   const skipped = events.records.length - usable.length;
   if (skipped) notes.push(`Ignored ${skipped} source row(s) with event codes outside ${EVENT_CODES.join(', ')}.`);
 
-  const personas = buildPersonas(usable);
+  const { personas, skippedNoAudio } = buildPersonas(usable);
+  if (skippedNoAudio) notes.push(`Skipped ${skippedNoAudio} source conversation(s) with no audio_time: their 50532 and 50533 were not used.`);
   const talkers = personas.filter((p) => p.sessions.length);
   const visitors = personas.filter((p) => p.visits.length);
   const allVisits = visitors.flatMap((p) => p.visits);
@@ -223,15 +233,17 @@ export function generate({
   const order = new Map(contacts.map((c, i) => [c._id, i]));
   out.sort((a, b) => order.get(a._id) - order.get(b._id) || Date.parse(a.event_date) - Date.parse(b.event_date));
 
+  const header = outputHeader(events.header);
   const validation = validate({
-    header: events.header, rows: out, expectedHeader: events.header,
+    header, rows: out, expectedHeader: events.header,
     contactsHeader: contactsParsed.header, contacts, acctID, now, config,
   });
   const summary = summarize(out, { contactsTotal: contacts.length, seed });
 
   return {
-    acctID, seed, header: events.header, rows: out,
-    csv: writeCsv(events.header, out), summary, validation, notes,
+    // header: output header (lowercase). columns: the matching keys of each row.
+    acctID, seed, header, columns: events.header, rows: out,
+    csv: writeCsv(events.header, out, header), summary, validation, notes,
     window: { start: new Date(windowStart).toISOString(), end: new Date(now).toISOString() },
   };
 }

@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Demo Event Generator</title>
+<link rel="icon" type="image/jpeg" href="favicon.jpg">
 <meta name="description" content="Build a demo voice-AI conversation export from a contacts file and a real events file.">
 <meta name="robots" content="noindex, nofollow">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -179,7 +180,7 @@ h1,h2,h3{margin:0; text-wrap:balance; font-weight:600; letter-spacing:-0.01em}
 
 .tbl-wrap{overflow:auto; max-height:520px}
 table{width:100%; border-collapse:collapse; font-size:12px}
-thead th{position:sticky; top:0; background:var(--surface); text-align:left; padding:10px 12px; font-size:10px; letter-spacing:.09em; text-transform:uppercase;
+thead th{position:sticky; top:0; background:var(--surface); text-align:left; padding:10px 12px; font-size:11px; letter-spacing:.02em;
   color:var(--ink-3); font-family:"IBM Plex Mono",monospace; font-weight:500; border-bottom:1px solid var(--line-2); white-space:nowrap}
 tbody td{padding:8px 12px; border-bottom:1px solid var(--line); white-space:nowrap; max-width:240px; overflow:hidden; text-overflow:ellipsis; font-family:"IBM Plex Mono",monospace}
 tbody tr:hover td{background:var(--surface-2)}
@@ -219,7 +220,7 @@ tbody tr:hover td{background:var(--surface-2)}
   <form class="ai-card" id="runForm">
     <div class="ai-head">
       <span class="ai-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12"/><path d="m8 7 4-4 4 4"/><path d="M4 21h16"/></svg></span>
-      <div class="t"><b>Choose input files</b><span>Files are processed in this browser and never uploaded. The generated CSV downloads directly<span id="localNote" hidden>, and the local server also saves a copy to <span class="mono">output/</span></span>.</span></div>
+      <div class="t"><b>Choose input files</b><span>Files are processed in this browser and never uploaded. The generated CSV is a browser download.</span></div>
     </div>
     <div class="uploads">
       <label class="drop" id="contactsDrop">
@@ -289,14 +290,11 @@ tbody tr:hover td{background:var(--surface-2)}
 
 <script type="module">
 // The generator runs entirely in this browser. Input files are never uploaded.
-// When served by the local server (npm start), a copy is also saved to output/.
 import { generate, parseSeed, outputFileName } from './lib/generator.js';
-import { formatSummary } from './lib/summary.js';
 
 (function () {
   'use strict';
 
-  const LOCAL = ['127.0.0.1', 'localhost'].includes(location.hostname);
   let downloadUrl = null;
 
   const files = { contacts: null, events: null };
@@ -371,24 +369,7 @@ import { formatSummary } from './lib/summary.js';
     });
   }
 
-  byId('localNote').hidden = !LOCAL;
-
   // ---- run -------------------------------------------------------------------
-  // Local server only: save a copy to output/. Returns the saved path or null.
-  async function saveLocalCopy(fileName, csv, summaryText) {
-    try {
-      const res = await fetch('/api/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName, csv, summaryText }),
-      });
-      const data = await res.json();
-      return res.ok ? data.path : null;
-    } catch (err) {
-      return null;
-    }
-  }
-
   document.addEventListener('submit', async function (e) {
     if (e.target.id !== 'runForm') return;
     e.preventDefault();
@@ -403,14 +384,13 @@ import { formatSummary } from './lib/summary.js';
         eventsFileName: files.events.name, ...(seed === undefined ? {} : { seed }),
       });
       const ok = result.validation.ok;
-      const fileName = ok ? outputFileName(result.acctID, result.seed) : null;
-      const savedTo = ok && LOCAL ? await saveLocalCopy(fileName, result.csv, formatSummary(result.summary)) : null;
+      const fileName = ok ? outputFileName(result.acctID) : null;
       if (downloadUrl) URL.revokeObjectURL(downloadUrl);
       downloadUrl = ok ? URL.createObjectURL(new Blob([result.csv], { type: 'text/csv;charset=utf-8' })) : null;
       render({
-        ok, fileName, savedTo, acctID: result.acctID, summary: result.summary,
+        ok, fileName, acctID: result.acctID, summary: result.summary,
         validation: result.validation, notes: result.notes, window: result.window,
-        header: result.header, preview: result.rows.slice(0, 50),
+        header: result.header, columns: result.columns, preview: result.rows.slice(0, 50),
       });
     } catch (err) {
       showError(err.message);
@@ -432,9 +412,9 @@ import { formatSummary } from './lib/summary.js';
     const s = d.summary;
     const banner = byId('banner');
     if (d.ok) {
-      fill(banner, h('b', null, d.savedTo ? 'Saved' : 'Ready'),
-        h('span', { class: 'mono' }, d.savedTo || d.fileName),
-        h('span', null, d.savedTo ? '· also available from Download CSV' : '· use Download CSV to save it'));
+      fill(banner, h('b', null, 'Ready'),
+        h('span', { class: 'mono' }, d.fileName),
+        h('span', null, '· use Download CSV to save it'));
       banner.className = 'banner good';
     } else {
       fill(banner, h('b', null, 'Validation failed.'), h('span', null, 'No file was produced. See the failed checks below.'));
@@ -491,7 +471,7 @@ import { formatSummary } from './lib/summary.js';
       row('First event', when(s.dateRange.first)),
       row('Last event', when(s.dateRange.last)),
       row('Window', `${when(d.window.start)} → ${when(d.window.end)}`),
-      row('Output', d.ok ? (d.savedTo || `${d.fileName} (download)`) : 'not produced'));
+      row('Output', d.ok ? `${d.fileName} (download)` : 'not produced'));
 
     // validation
     const failedCount = d.validation.checks.filter((c) => !c.ok).length;
@@ -511,7 +491,7 @@ import { formatSummary } from './lib/summary.js';
 
     // preview
     fill(byId('thead'), h('tr', null, d.header.map((c) => h('th', null, c))));
-    fill(byId('tbody'), d.preview.map((r) => h('tr', null, d.header.map((c) => {
+    fill(byId('tbody'), d.preview.map((r) => h('tr', null, d.columns.map((c) => {
       const v = r[c] ?? '';
       if (c === 'event_code') return h('td', null, h('span', { class: `code c${v}` }, v));
       return h('td', { title: v }, v);

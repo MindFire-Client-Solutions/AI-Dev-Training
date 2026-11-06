@@ -42,8 +42,9 @@ function quote(v) {
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-export function writeCsv(header, records) {
-  const lines = [header.map(quote).join(',')];
+// `labels` is the header line written to the file (defaults to the record keys).
+export function writeCsv(header, records, labels = header) {
+  const lines = [labels.map(quote).join(',')];
   for (const r of records) lines.push(header.map((h) => quote(r[h])).join(','));
   return lines.join('\r\n') + '\r\n';
 }

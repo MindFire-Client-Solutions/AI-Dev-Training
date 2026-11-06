@@ -8,15 +8,12 @@ without waiting on live campaign traffic.
 
 Reads `input/contacts.csv` and `input/agentConversationEvents_nnnnn.csv` where nnnnn is the account number.
 During every run, the system will produces event rows for those contacts, matching the schema of the real event export exactly. 
-Where the output goes depends on how the UI is run:
-
-- **Local** (`npm start`): the CSV is saved to `output/` and offered for download.
-- **Hosted** (Cloudflare Pages): the CSV is a browser download only. There is no
-  `output/` folder on the hosted site.
+The output CSV is a browser download (the **Download CSV** button), both locally
+(`npm start`) and hosted (Cloudflare Pages). Nothing is written to disk by the app.
 
 In both cases the generator runs **in the browser**. The input files are chosen in the
 page, processed there, and never uploaded anywhere. The run summary is shown on
-screen (and printed in the terminal when run locally). `input/` is where the files
+screen. `input/` is where the files
 are kept locally.
 
 **Output target:** CSV in the same format as `input/agentConversationEvents_nnnnn.csv`
@@ -39,7 +36,8 @@ The export is a **contact ⋈ event join**, where the contact block
 repeats identically on every one of that contact's event rows, and the event block
 (`app_code`, `event_code`, `event_date`, `event_path`, `event_element`, `app_code`)
 and other columns listed in the file `input/agentConversationEvents_nnnnn.csv`.
-The output header is that file's header exactly — same columns, same order.
+The output header is that file's header — same columns, same order — with every column
+name in lowercase (`PURL` → `purl`, `acctID` → `acctid`, `Browser` → `browser`).
 `purl` and `_id` uniquely identify a **contact** with its personalized URL and database objectId.
 
 ## Generation rules
@@ -52,7 +50,10 @@ The output header is that file's header exactly — same columns, same order.
   for that contact. Columns absent from the contacts file are emitted empty.
 - Select event rows from `input/agentConversationEvents_nnnnn.csv`, and append the following columns to each row of the output file.
 event_date, event_path, event_element, app_code, Browser, Device, OS, Platform, IP, audio_transcript, audio_recording, tokens_used, audio_time, data
-- The final column of the output file will be acctID, and it will have the value copied from the column acctID in the `input/agentConversationEvents_nnnnn.csv` file.
+- The acctID column has the value copied from the column acctID in the `input/agentConversationEvents_nnnnn.csv` file.
+  It is the final column in the real export; the output keeps whatever column order the events file has.
+- The order of columns in either input file does not matter. Columns are matched by name
+  (case-insensitively between `contacts.csv` and the events file, e.g. `purl` → `PURL`).
 - Only the four codes in `reference/event_codes.md` §1: `30500`, `50531`, `50532`, `50533`. 
   Never emit any other codes — they belong to different campaign types and will pollute the dashboard.
 - `app_code` is always the first three digits of `event_code`.
@@ -79,12 +80,12 @@ magic numbers buried in the code.
 
 Timing constraints that must hold:
 
-- `50531` → `50532` gap ≈ `audio_time` (it *is* the call duration): 17s–5m observed
-- `50532` → `50533` gap is sub-second: 0.18–0.67s observed
+- Events are created asynchronously. The gap between `50531` and `50532` need not match
+  `audio_time`, and the order of `event_date` within a conversation is not checked.
 - `30500` timestamps are second-precision ending `.000Z`; all `505xx` timestamps
   carry milliseconds. **Do not use one format for both.**
 - Every `event_date` falls between today minus 7 days and now. Source dates are
-  re-timed into that window; gaps inside a conversation are kept exactly.
+  re-timed into that window; gaps inside a conversation are kept as in the source.
 
 ### Fingerprint rules
 
@@ -96,15 +97,18 @@ Timing constraints that must hold:
 
 - `audio_transcript`, `audio_recording`, `tokens_used`, `audio_time` appear **only**
   on `50532`. Transcript and recording share the same UUID per conversation.
+- If a source `50532` has no `audio_time` (blank or 0), skip that conversation's `50532` and
+  `50533` and move on. Do not fail the run. Its `50531` may still be used as an abandoned request.
 - `data` appears **only** on `50533`. An empty `data` on an evaluated row can occur.
 - `tokens_used` must be internally consistent — `input_tokens` equals the sum of its
   detail fields, and counts scale with `audio_time`. See `reference/event_codes.md` §4.
-- `conversation_summary` entries are third-person past tense, alternate assistant/user, and start with assistant.
+- `conversation_summary` entries are third-person past tense, start with assistant, and mostly
+  alternate assistant/user. The same speaker twice in a row occurs in real exports and is valid.
 
 ## Hard rules
 
 - **Never write to a production endpoint, database, SFTP path, or S3 bucket.**
-  Output goes to `output/` (local) or a browser download (hosted), nothing else.
+  Output is a browser download, nothing else.
   If a task seems to require a live write, stop and ask.
 - **The hosted page must never send input or output data off the user's machine.**
   No upload endpoint, no analytics, no third-party scripts. `_headers` sets
@@ -113,8 +117,8 @@ Timing constraints that must hold:
   `reference/event_table_sample.csv` — all contain real client contact data.
 - No credentials, account codes, or endpoint URLs in source. Read them from the
   environment and fail loudly if absent.
-- If generated output doesn't match the headers of `input/agentConversationEvents_nnnnn.csv` exactly — same
-  columns, same order — fail the run. Don't coerce or silently drop columns.
+- If generated output doesn't match the headers of `input/agentConversationEvents_nnnnn.csv` — same
+  columns, same order, all names lowercase — fail the run. Don't coerce or silently drop columns.
 
 ## Stack and commands
 
@@ -123,7 +127,7 @@ plain HTML and vanilla JS, styled on `reference/Zoltar_AI_Dashboard_Intelligence
 No npm dependencies.
 
 ```
-npm start       # UI on http://127.0.0.1:4310 (PORT to change); saves to output/
+npm start       # UI on http://127.0.0.1:4310 (PORT to change)
 npm test        # validator + generator tests (node:test, synthetic fixtures only)
 npm run build   # dist/ for Cloudflare Pages
 ```
@@ -136,7 +140,7 @@ stay browser-safe: no Node built-ins, because the same files are deployed as-is.
 Cloudflare Pages, public link (anyone with the URL; `noindex` keeps it out of search).
 
 - Root directory `event-management`, build command `npm run build`, output `dist`.
-- `scripts/build.js` copies `src/ui/index.html` and `src/lib/*.js` and writes
+- `scripts/build.js` copies `src/ui/index.html`, `src/ui/favicon.jpg` and `src/lib/*.js` and writes
   `_headers` (CSP, noindex, no framing). No bundler, no dependencies.
 - `dist/` is a build artifact and is not committed.
 

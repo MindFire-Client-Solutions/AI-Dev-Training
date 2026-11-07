@@ -7,6 +7,7 @@
 <link rel="icon" type="image/jpeg" href="favicon.jpg">
 <meta name="description" content="Build a demo voice-AI conversation export from a contacts file and a real events file.">
 <meta name="robots" content="noindex, nofollow">
+<meta name="mf-settings-api" content="">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -188,15 +189,31 @@ tbody tr:hover td{background:var(--surface-2)}
 .tfoot{padding:12px 18px; font-size:12px; color:var(--ink-2)}
 .c30500{background:var(--s1)} .c50531{background:var(--s2)} .c50532{background:var(--s3)} .c50533{background:var(--s4)}
 
+/* settings */
+.settings{margin-bottom:16px}
+.sgrid{display:grid; grid-template-columns:repeat(4, 1fr); gap:12px}
+.sgrid .wide{grid-column:span 2}
+.sgroup{grid-column:1 / -1; margin-top:6px}
+.sactions{display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; align-items:center}
+.sactions.inline{margin-top:0}
+.sstatus{font-size:12.5px; color:var(--ink-2); overflow-wrap:anywhere}
+.sstatus.ok{color:var(--good-ink)}
+.sstatus.bad{color:var(--bad-ink)}
+.sout{margin:12px 0 0; padding:12px 14px; background:var(--surface-2); border:1px solid var(--line); border-radius:11px;
+  font-family:"IBM Plex Mono",monospace; font-size:12px; white-space:pre-wrap; overflow-wrap:anywhere}
+
 @media (max-width:1100px){
   .kpis{grid-template-columns:repeat(3,1fr)}
   .row2, .row3{grid-template-columns:1fr}
   .uploads{grid-template-columns:1fr 1fr}
+  .sgrid{grid-template-columns:1fr 1fr}
 }
 @media (max-width:640px){
   .main{padding:16px 16px 40px}
   .kpis{grid-template-columns:repeat(2,1fr)}
   .uploads{grid-template-columns:1fr}
+  .sgrid{grid-template-columns:1fr}
+  .sgrid .wide{grid-column:auto}
 }
 </style>
 </head>
@@ -212,6 +229,7 @@ tbody tr:hover td{background:var(--surface-2)}
       </div>
     </div>
     <div class="tools">
+      <button class="btn" id="settingsBtn" type="button" hidden aria-expanded="false" aria-controls="settingsPanel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>Settings</button>
       <button class="btn icon" id="themeBtn" type="button" title="Toggle theme" aria-label="Toggle theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v2M12 19v2M5 5l1.5 1.5M17.5 17.5 19 19M3 12h2M19 12h2M5 19l1.5-1.5M17.5 6.5 19 5"/><circle cx="12" cy="12" r="4"/></svg></button>
       <a class="btn pri" id="downloadBtn" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12"/><path d="m8 11 4 4 4-4"/><path d="M4 19h16"/></svg>Download CSV</a>
     </div>
@@ -242,6 +260,32 @@ tbody tr:hover td{background:var(--surface-2)}
       </button>
     </div>
     <div class="hint">Every event date is placed within the last 7 days, up to now. Seed is optional: leave it blank for a random run, or enter a whole number from 0 to 4,294,967,295. The same seed repeats which contacts, conversations and source rows are used, but dates move with the time of the run.</div>
+  </form>
+
+  <form class="card settings" id="settingsPanel" hidden autocomplete="off">
+    <div class="card-h"><h3>Weekly SFTP run</h3><span class="cap">Runs every Sunday 10 PM Pacific from AWS. Settings are stored in AWS.</span></div>
+    <div class="sgrid">
+      <div class="field wide"><span class="lbl">Admin key</span><input id="sAdminKey" type="password" autocomplete="off" aria-label="Admin key"></div>
+      <div class="sactions inline wide"><button class="btn" type="button" id="sLoad">Load settings</button></div>
+
+      <div class="eyebrow sgroup">Input files (links)</div>
+      <div class="field wide"><span class="lbl">Contacts link</span><input id="sContactsUrl" type="url" placeholder="https://…/contacts.csv" aria-label="Contacts link"></div>
+      <div class="field wide"><span class="lbl">Events link</span><input id="sEventsUrl" type="url" placeholder="https://…/agentConversationEvents_nnnnn.csv" aria-label="Events link"></div>
+
+      <div class="eyebrow sgroup">SFTP destination</div>
+      <div class="field wide"><span class="lbl">Host</span><input id="sHost" placeholder="sftp.example.com" aria-label="SFTP host"></div>
+      <div class="field"><span class="lbl">Port</span><input id="sPort" inputmode="numeric" value="22" aria-label="SFTP port"></div>
+      <div class="field"><span class="lbl">Username</span><input id="sUser" autocomplete="off" aria-label="SFTP username"></div>
+      <div class="field wide"><span class="lbl">Password</span><input id="sPass" type="password" autocomplete="new-password" aria-label="SFTP password"></div>
+      <div class="field wide"><span class="lbl">Folder</span><input id="sFolder" placeholder="/incoming/demo-events" aria-label="SFTP folder"></div>
+    </div>
+    <div class="sactions">
+      <button class="btn pri" type="submit" id="sSave">Save</button>
+      <button class="btn" type="button" id="sTest">Test SFTP</button>
+      <button class="btn" type="button" id="sRun">Run now</button>
+      <span class="sstatus" id="sStatus" role="status"></span>
+    </div>
+    <pre class="sout" id="sOut" hidden></pre>
   </form>
 
   <div id="banner" hidden></div>
@@ -501,6 +545,121 @@ import { generate, parseSeed, outputFileName } from './lib/generator.js';
 
     byId('results').hidden = false;
   }
+
+  // ---- settings: weekly SFTP run (docs/001-scheduled-sftp-run.md) -------------
+  // Shown only when the build set SETTINGS_API_URL. Talks only to that API; the files
+  // chosen above are never sent.
+  const settingsMeta = document.querySelector('meta[name="mf-settings-api"]');
+  if (!settingsMeta) throw new Error('mf-settings-api meta missing');
+  const API = settingsMeta.content.trim().replace(/\/+$/, '');
+  const KEY_STORE = 'egAdminKey';
+
+  if (API) {
+    byId('settingsBtn').hidden = false;
+    try { byId('sAdminKey').value = localStorage.getItem(KEY_STORE) || ''; } catch (e) { /* storage blocked */ }
+  }
+
+  function setStatus(kind, text) {
+    const el = byId('sStatus');
+    el.className = `sstatus ${kind}`;
+    el.textContent = text;
+  }
+  function setOut(text) {
+    const el = byId('sOut');
+    el.textContent = text || '';
+    el.hidden = !text;
+  }
+
+  async function api(method, path, body) {
+    const key = byId('sAdminKey').value.trim();
+    if (!key) throw new Error('Enter the admin key first.');
+    const res = await fetch(API + path, {
+      method,
+      headers: { 'x-admin-key': key, ...(body ? { 'content-type': 'application/json' } : {}) },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    let data = {};
+    try { data = await res.json(); } catch (e) { /* non-JSON error page */ }
+    if (!res.ok) throw new Error(data.error || `Request failed (HTTP ${res.status})`);
+    try { localStorage.setItem(KEY_STORE, key); } catch (e) { /* storage blocked */ }
+    return data;
+  }
+
+  function showSettings(s) {
+    byId('sContactsUrl').value = s.contactsUrl || '';
+    byId('sEventsUrl').value = s.eventsUrl || '';
+    byId('sHost').value = s.sftp.host || '';
+    byId('sPort').value = s.sftp.port || 22;
+    byId('sUser').value = s.sftp.username || '';
+    byId('sFolder').value = s.sftp.folder || '';
+    byId('sPass').value = '';
+    byId('sPass').placeholder = s.passwordSet ? 'unchanged (type to replace)' : 'not set';
+  }
+
+  async function busy(label, work) {
+    const buttons = ['sLoad', 'sSave', 'sTest', 'sRun'].map(byId);
+    buttons.forEach((b) => { b.disabled = true; });
+    setStatus('', label);
+    try {
+      await work();
+    } catch (err) {
+      setStatus('bad', err.message);
+    } finally {
+      buttons.forEach((b) => { b.disabled = false; });
+    }
+  }
+
+  const loadSettings = () => busy('Loading…', async () => {
+    showSettings(await api('GET', '/settings'));
+    setOut('');
+    setStatus('ok', 'Settings loaded.');
+  });
+
+  document.addEventListener('click', function (e) {
+    const btn = e.target.closest('#settingsBtn, #sLoad, #sTest, #sRun');
+    if (!btn) return;
+    if (btn.id === 'settingsBtn') {
+      const panel = byId('settingsPanel');
+      panel.hidden = !panel.hidden;
+      btn.setAttribute('aria-expanded', String(!panel.hidden));
+      if (!panel.hidden && byId('sAdminKey').value) loadSettings();
+    } else if (btn.id === 'sLoad') {
+      loadSettings();
+    } else if (btn.id === 'sTest') {
+      busy('Connecting to SFTP…', async () => {
+        const r = await api('POST', '/test-sftp');
+        setOut('');
+        setStatus('ok', `Connected. Folder ${r.folder} has ${r.entries} item(s).`);
+      });
+    } else if (btn.id === 'sRun') {
+      busy('Running: generating and uploading…', async () => {
+        const r = await api('POST', '/run');
+        setStatus('ok', `Uploaded ${r.uploaded}`);
+        const notes = r.notes && r.notes.length ? ['', 'Notes:', ...r.notes.map((n) => `- ${n}`)] : [];
+        setOut([r.summaryText, ...notes].join('\n'));
+      });
+    }
+  });
+
+  document.addEventListener('submit', function (e) {
+    if (e.target.id !== 'settingsPanel') return;
+    e.preventDefault();
+    busy('Saving…', async () => {
+      const saved = await api('PUT', '/settings', {
+        contactsUrl: byId('sContactsUrl').value.trim(),
+        eventsUrl: byId('sEventsUrl').value.trim(),
+        sftp: {
+          host: byId('sHost').value.trim(),
+          port: Number(byId('sPort').value.trim() || 22),
+          username: byId('sUser').value.trim(),
+          password: byId('sPass').value,
+          folder: byId('sFolder').value.trim(),
+        },
+      });
+      showSettings(saved);
+      setStatus('ok', 'Saved.');
+    });
+  });
 }());
 </script>
 </body>

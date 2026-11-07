@@ -65,14 +65,33 @@ npm run build
 
 Creates `dist/` (the page, its modules, and `_headers`). Then either:
 
-- **Connect to Git** (Workers & Pages → Create → Pages → Connect to Git):
+Live at **https://mfi-event-generator.pages.dev/**, connected to GitHub: every merge to
+`main` redeploys. To set up a new one:
+
+- **Connect to Git** (Workers & Pages → Create application → "Continue to Pages" →
+  Import an existing Git repository):
   root directory `event-management`, build command `npm run build`, output
   directory `dist`. Every push to the production branch redeploys.
 - **Upload assets:** drag the `dist` folder into a new Pages project.
 - **CLI:** `npx wrangler pages deploy dist` (after `wrangler login`).
 
-The hosted page cannot send data anywhere (`connect-src 'none'`) and is kept out of
-search engines (`noindex`). As locally, the CSV is a browser download only.
+The hosted page is kept out of search engines (`noindex`) and can talk to nothing
+(`connect-src 'none'`), except the Settings API once `SETTINGS_API_URL` is set. As
+locally, the CSV is a browser download only.
+
+## Weekly SFTP run (AWS)
+
+Every Sunday at 10 PM Pacific, an AWS Lambda fetches the two input files from links,
+generates a new CSV with the same rules as the UI, and uploads it to an SFTP folder. Change
+the links and the SFTP folder from the **Settings** button in the UI (needs the admin key).
+
+```
+npm run build:lambda
+```
+
+Creates `lambda-dist/mf-event-generator-lambda.zip`. Deploy it with the console steps in
+[`docs/lambda-deploy.md`](docs/lambda-deploy.md). Spec:
+[`docs/001-scheduled-sftp-run.md`](docs/001-scheduled-sftp-run.md).
 
 ## Tuning
 
@@ -81,5 +100,6 @@ per contact, the 7-day window) live in [`src/lib/config.js`](src/lib/config.js).
 
 ## Data handling
 
-`input/` and `output/` contain real client data and are gitignored. Never commit
-them.
+The contacts are fictitious demo people. `input/` and `output/` are still gitignored;
+never commit them. The SFTP password is stored only in AWS Secrets Manager and is never
+shown in the UI.

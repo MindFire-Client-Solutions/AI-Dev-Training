@@ -16,6 +16,14 @@ page, processed there, and never uploaded anywhere. The run summary is shown on
 screen. `input/` is where the files
 are kept locally.
 
+**Weekly scheduled run:** an AWS Lambda, triggered by EventBridge every Sunday 10 PM
+Pacific, fetches the two input files from links, generates with the same `src/lib` code,
+and uploads the CSV to one SFTP folder. Its settings (input links, SFTP host, port,
+username, password, folder) are edited in the UI's Settings screen and stored in AWS
+Secrets Manager. Spec: `docs/001-scheduled-sftp-run.md`. Deploy: `docs/lambda-deploy.md`.
+
+The contacts are fictitious demo people. This tool is never used for a real production site.
+
 **Output target:** CSV in the same format as `input/agentConversationEvents_nnnnn.csv`
 
 ## Reference material (read these before writing any code)
@@ -107,12 +115,17 @@ Timing constraints that must hold:
 
 ## Hard rules
 
-- **Never write to a production endpoint, database, SFTP path, or S3 bucket.**
-  Output is a browser download, nothing else.
-  If a task seems to require a live write, stop and ask.
+- **The only write allowed is the scheduled job's upload to the one SFTP folder in
+  Settings.** Never write to a database, S3, or any other endpoint, and never delete
+  anything on the SFTP server (the consuming system removes old files). The UI's own
+  output is a browser download. If a task seems to need any other write, stop and ask.
 - **The hosted page must never send input or output data off the user's machine.**
-  No upload endpoint, no analytics, no third-party scripts. `_headers` sets
-  `connect-src 'none'`; keep it that way.
+  No upload endpoint, no analytics, no third-party scripts. `connect-src` in `_headers`
+  is `'none'`, or exactly one origin, the Settings API, when `SETTINGS_API_URL` is set.
+  The page sends only settings, Test SFTP and Run now requests there; files chosen in the
+  page and the generated CSV are never sent.
+- **Every Settings API request needs the admin key** (`x-admin-key`). `GET /settings`
+  never returns the SFTP password.
 - Never commit anything from `input/` or `output/`, and never commit
   `reference/event_table_sample.csv` — all contain real client contact data.
 - No credentials, account codes, or endpoint URLs in source. Read them from the
@@ -124,12 +137,14 @@ Timing constraints that must hold:
 
 NodeJS for the backend logic, and VueJS/HTML, when creating UI. The current UI is
 plain HTML and vanilla JS, styled on `reference/Zoltar_AI_Dashboard_Intelligence_Demo.html`.
-No npm dependencies.
+No npm dependencies for the page or `src/lib`. The Lambda (`lambda/`) has one,
+`ssh2-sftp-client` (agreed 2026-11-05), in `lambda/package.json` only.
 
 ```
-npm start       # UI on http://127.0.0.1:4310 (PORT to change)
-npm test        # validator + generator tests (node:test, synthetic fixtures only)
-npm run build   # dist/ for Cloudflare Pages
+npm start              # UI on http://127.0.0.1:4310 (PORT, SETTINGS_API_URL optional)
+npm test               # validator, generator and Lambda tests (node:test, fakes only)
+npm run build          # dist/ for Cloudflare Pages
+npm run build:lambda   # lambda-dist/mf-event-generator-lambda.zip for AWS
 ```
 
 Tunable ratios and ranges live in `src/lib/config.js`. Everything in `src/lib/` must
@@ -143,6 +158,13 @@ Cloudflare Pages, public link (anyone with the URL; `noindex` keeps it out of se
 - `scripts/build.js` copies `src/ui/index.html`, `src/ui/favicon.jpg` and `src/lib/*.js` and writes
   `_headers` (CSP, noindex, no framing). No bundler, no dependencies.
 - `dist/` is a build artifact and is not committed.
+- Optional Pages environment variable `SETTINGS_API_URL` (the Lambda Function URL) turns on
+  the Settings screen and adds that origin to `connect-src`.
+
+AWS (weekly run): one Lambda (Node.js 22, handler `lambda/index.handler`), a Function URL
+for the Settings API, one Secrets Manager secret, and an EventBridge Scheduler schedule.
+Lambda environment variables: `SETTINGS_SECRET_ID`, `ADMIN_KEY`, `ALLOWED_ORIGIN`.
+Deployed by hand from the zip, following `docs/lambda-deploy.md`.
 
 ## Run summary (print this every time)
 

@@ -1,0 +1,10 @@
+{
+  "name": "mf-event-generator-lambda",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Weekly scheduled run to SFTP and Settings API. Packaged by npm run build:lambda.",
+  "dependencies": {
+    "ssh2-sftp-client": "12.1.1"
+  }
+}

@@ -15,6 +15,9 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const HOST = '127.0.0.1';
 const PORT = Number(process.env.PORT ?? 4310);
+// Same as scripts/build.js: SETTINGS_API_URL turns on the Settings screen.
+const SETTINGS_API = (process.env.SETTINGS_API_URL ?? '').trim().replace(/\/+$/, '').replace(/"/g, '');
+const META = '<meta name="mf-settings-api" content="">';
 
 // The only files served: the page and the browser modules it imports.
 const STATIC = new Map([
@@ -37,7 +40,11 @@ const server = createServer(async (req, res) => {
     const file = req.method === 'GET' && STATIC.get(url.pathname);
     if (file) {
       res.writeHead(200, { 'Content-Type': file[1], 'Cache-Control': 'no-store' });
-      return res.end(await readFile(join(ROOT, file[0])));
+      const body = await readFile(join(ROOT, file[0]));
+      if (SETTINGS_API && file[0].endsWith('.html')) {
+        return res.end(body.toString('utf8').replace(META, `<meta name="mf-settings-api" content="${SETTINGS_API}">`));
+      }
+      return res.end(body);
     }
     sendJson(res, 404, { error: 'Not found' });
   } catch (err) {

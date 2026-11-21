@@ -7,4 +7,5 @@ column order, and add your row at the bottom.
 
 | Name | Role | Location |
 |---|---|---|
-| Kushal Dutta | Product delivery | US |
+| Kushal Dutta | Product delivery | Irvine, CA, USA |
+| Coa | Engineer | Bangkok, Thailand |
